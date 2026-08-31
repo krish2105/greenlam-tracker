@@ -66,6 +66,27 @@ class Settings(BaseSettings):
     # unless this is explicitly set. See app/seed.py.
     allow_remote_seed: bool = False
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _force_psycopg3(cls, v: object) -> object:
+        """Put the psycopg3 driver onto a plain Postgres URL.
+
+        Managed providers hand out `postgres://` or `postgresql://`. SQLAlchemy
+        maps a bare `postgresql://` to psycopg2, which this project does not
+        install — so the failure is `ModuleNotFoundError: No module named
+        'psycopg2'` raised deep inside the dialect loader, nowhere near the
+        connection string that actually caused it. Render, Neon and Heroku all
+        produce a string in this shape, so normalise it here rather than asking
+        every deployment to remember the `+psycopg` part.
+
+        An explicit driver is left alone: someone who wrote `+asyncpg` meant it.
+        """
+        if isinstance(v, str) and "+" not in v.split("://", 1)[0]:
+            for prefix in ("postgresql://", "postgres://"):
+                if v.startswith(prefix):
+                    return "postgresql+psycopg://" + v[len(prefix) :]
+        return v
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, v: object) -> object:
