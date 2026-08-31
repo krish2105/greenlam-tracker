@@ -58,12 +58,11 @@ services:
         # scheme, which QR payloads ({BASE_URL}/s/{token}) cannot use. So this
         # is written out in full.
         #
-        # It must match the web service's real URL. Render appends a random
-        # suffix when a name is already taken globally, so CHECK THIS after the
-        # first apply: if the site came up as greenlam-tracker-web-xxxx, fix
-        # this value and the rewrite destination below to match. Only QR codes
-        # break if it is wrong; the rewrite is the one that breaks sign-in.
-        value: https://greenlam-tracker-web.onrender.com
+        # The -l80w suffix is real, not a typo. Render appended it when this
+        # blueprint created the services, and it is part of the hostname. Do
+        # not "clean it up" here or in the rewrite destination below: this
+        # value only breaks QR codes, but that rewrite breaks sign-in.
+        value: https://greenlam-tracker-web-l80w.onrender.com
       - key: ALLOW_REMOTE_SEED
         # TRUE ONLY BECAUSE THIS IS THE SYNTHETIC DEMO. The seed refuses to
         # touch a non-local database unless this is set, which is the guard
@@ -88,7 +87,7 @@ services:
       # Same-origin API. Must come before the SPA catch-all.
       - type: rewrite
         source: /api/*
-        destination: https://greenlam-tracker-api.onrender.com/api/*
+        destination: https://greenlam-tracker-api-l80w.onrender.com/api/*
       # SPA fallback: every other path serves index.html so client routing works.
       - type: rewrite
         source: /*
