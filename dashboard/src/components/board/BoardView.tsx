@@ -56,6 +56,12 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
   // every drill target on the board, so the charts never learn about each other.
   const [focus, setFocus] = useState<BoardFocus | null>(null);
   const [failed, setFailed] = useState(false);
+  // True until the first load settles. Without it the board renders its
+  // empty state — "0 machines", "Open tickets 0", "No closed tickets yet" —
+  // which are assertions about data that has not arrived. On a cold free-tier
+  // instance that lasts several seconds and reads as "the plant has no data",
+  // which is the opposite of true.
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -74,6 +80,8 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
       setProd(p);
     } catch {
       setFailed(true);
+    } finally {
+      setLoading(false);
     }
   }, [days]);
 
@@ -142,7 +150,9 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
           </span>
         </h1>
         <p className="mt-2" style={{ color: 'var(--ink-muted)' }}>
-          {t('board.heroSub', { machines: stats?.machine_count ?? 0, days })}
+          {loading
+            ? t('board.heroLoading', { days })
+            : t('board.heroSub', { machines: stats?.machine_count ?? 0, days })}
         </p>
       </header>
 
@@ -178,14 +188,16 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
           />
           <Tile
             label={t('board.openTickets')}
-            value={String(feed?.open_total ?? 0)}
-            sub={t('board.escalatedCount', { count: feed?.escalated_total ?? 0 })}
+            value={loading ? '—' : String(feed?.open_total ?? 0)}
+            sub={
+              loading ? '' : t('board.escalatedCount', { count: feed?.escalated_total ?? 0 })
+            }
             tone={feed && feed.escalated_total > 0 ? 'bad' : 'neutral'}
           />
           <Tile
             label={t('board.firstTimeFix')}
             value={k?.first_time_fix_percent != null ? `${k.first_time_fix_percent}%` : '—'}
-            sub={`${t('board.reopenRate')}: ${k?.reopen_percent ?? 0}%`}
+            sub={`${t('board.reopenRate')}: ${k?.reopen_percent != null ? k.reopen_percent : '—'}%`}
             tone={
               k?.first_time_fix_percent == null
                 ? 'neutral'
@@ -340,7 +352,7 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
           >
             {t('board.bySection')}
           </h2>
-          <SectionBars rows={summary?.sections ?? []} />
+          <SectionBars rows={summary?.sections ?? []} loading={loading} />
         </section>
       </div>
 
@@ -565,9 +577,17 @@ function Ageing({ buckets }: { buckets: Record<string, number> }) {
   );
 }
 
-function SectionBars({ rows }: { rows: api.SectionSummary[] }) {
+function SectionBars({ rows, loading }: { rows: api.SectionSummary[]; loading: boolean }) {
   const { t } = useTranslation();
   const sectionName = useSectionName();
+
+  if (loading) {
+    return (
+      <p className="py-6" style={{ color: 'var(--ink-muted)' }}>
+        {t('masters.loading')}
+      </p>
+    );
+  }
 
   if (rows.length === 0) {
     return (

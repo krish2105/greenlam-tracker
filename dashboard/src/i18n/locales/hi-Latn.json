@@ -72,6 +72,7 @@
     "needsYou_one": "1 kaam aapka intezaar kar raha hai",
     "needsYou_other": "{{count}} kaam aapka intezaar kar rahe hain",
     "nothingNeedsYou": "Abhi aapke liye kuch nahi hai",
+    "checking": "Dekh rahe hain ki aapke liye kya hai…",
     "openWork": "Floor par khule kaam",
     "allClear": "Koi ticket khula nahi hai. Koi machine ruki ho to darj karein.",
     "raise": "Machine band hone ki soochna dein",
@@ -182,6 +183,7 @@
     "heroLead": "Plant ka samay kahan ja raha hai —",
     "heroAccent": "aur kahan sab theek hai.",
     "heroSub": "{{machines}} machine, {{days}} din. Kram cost ke hisaab se hai, shor ke hisaab se nahi.",
+    "heroLoading": "Pichhle {{days}} din padhe ja rahe hain…",
     "costValue": "₹{{amount}} ka nuksaan band rehne se",
     "costBasis": "{{days}} dinon mein, har machine ke liye tay ghanta-rate ke hisaab se.",
     "costPartial": "Abhi rupaye ka aankda nahi — jo {{total}} machine band huin unmein se {{priced}} ka ghanta-rate bhara hai. Kuch ka hi jod poora dikhega par chupchaap kam hoga. Baaki Setup mein bharein."

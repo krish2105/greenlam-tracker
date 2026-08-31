@@ -47,6 +47,11 @@ export function FloorView({ user, canRaise, canSeeTeam }: FloorViewProps) {
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState<api.ScanResolution | null>(null);
   const [failed, setFailed] = useState(false);
+  // "Nothing needs you right now" is a claim, not a placeholder. Rendering it
+  // before the open tickets have arrived tells a technician the floor is clear
+  // when it may not be — the one sentence on this screen that must never be
+  // wrong.
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -61,6 +66,8 @@ export function FloorView({ user, canRaise, canSeeTeam }: FloorViewProps) {
       setHandover(h);
     } catch {
       setFailed(true);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -88,7 +95,7 @@ export function FloorView({ user, canRaise, canSeeTeam }: FloorViewProps) {
 
   return (
     <div className="pb-28">
-      <Greeting name={user.name} count={needsYou.length} />
+      <Greeting name={user.name} count={needsYou.length} loading={loading} />
 
       {needsYou.length > 0 && (
         <section aria-labelledby="needs-you" className="mt-4">
@@ -118,12 +125,18 @@ export function FloorView({ user, canRaise, canSeeTeam }: FloorViewProps) {
         >
           {t('floor.openWork')}{' '}
           <span style={{ color: 'var(--ink-muted)', fontWeight: 400 }}>
-            · {tickets.length}
+            · {loading ? '—' : tickets.length}
           </span>
         </h2>
 
-        {tickets.length === 0 ? (
-          // An empty screen is an invitation, not a dead end.
+        {loading ? (
+          <p className="py-6" style={{ color: 'var(--ink-muted)' }}>
+            {t('masters.loading')}
+          </p>
+        ) : tickets.length === 0 ? (
+          // An empty screen is an invitation, not a dead end. But it has to be
+          // true first — "no open tickets" before the list has loaded is the
+          // same lie as the greeting above.
           <p className="py-6" style={{ color: 'var(--ink-muted)' }}>
             {t('floor.allClear')}
           </p>
@@ -311,7 +324,15 @@ export function FloorView({ user, canRaise, canSeeTeam }: FloorViewProps) {
   );
 }
 
-function Greeting({ name, count }: { name: string; count: number }) {
+function Greeting({
+  name,
+  count,
+  loading,
+}: {
+  name: string;
+  count: number;
+  loading: boolean;
+}) {
   const { t } = useTranslation();
   const firstName = name.split(' ')[0] ?? name;
   return (
@@ -323,7 +344,11 @@ function Greeting({ name, count }: { name: string; count: number }) {
         className="font-semibold"
         style={{ fontSize: 'var(--text-xl)', color: 'var(--ink)' }}
       >
-        {count === 0 ? t('floor.nothingNeedsYou') : t('floor.needsYou', { count })}
+        {loading
+          ? t('floor.checking')
+          : count === 0
+            ? t('floor.nothingNeedsYou')
+            : t('floor.needsYou', { count })}
       </p>
     </div>
   );

@@ -72,6 +72,7 @@
     "needsYou_one": "1 thing needs you",
     "needsYou_other": "{{count}} things need you",
     "nothingNeedsYou": "Nothing needs you right now",
+    "checking": "Checking what needs you…",
     "openWork": "Open on the floor",
     "allClear": "No open tickets. Raise one if a machine has stopped.",
     "raise": "Report a breakdown",
@@ -182,6 +183,7 @@
     "heroLead": "Where the plant is losing time —",
     "heroAccent": "and where it is fine.",
     "heroSub": "{{machines}} machines, {{days}} days. Ranked by what it cost, not by what is loudest.",
+    "heroLoading": "Reading the last {{days}} days…",
     "costValue": "₹{{amount}} lost to downtime",
     "costBasis": "over {{days}} days, from the hourly rate set for each machine.",
     "costPartial": "No rupee figure yet — {{priced}} of {{total}} machines that went down have an hourly rate. A total covering only some of them would look complete and be silently low. Set the rest under Setup."
