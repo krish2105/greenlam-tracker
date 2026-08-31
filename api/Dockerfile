@@ -30,6 +30,19 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD python -c "import urllib.request,sys; \
     sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health').status==200 else 1)"
 
+# Shell form so $PORT is expanded: Render assigns the port and expects the
+# container to bind it, while docker compose and a plain `docker run` have no
+# PORT set and fall back to 8000 (which EXPOSE and the healthcheck use).
+#
+# Migrations run on every start. They are idempotent, and a container that
+# boots against a schema it does not match is a worse failure than a few
+# seconds of startup.
+#
+# The seed runs too, WITHOUT --reset. Without that flag it stops at "a plant
+# already exists" and changes nothing, so a fresh database gets its demo data
+# and a running one keeps whatever people have entered since. It still refuses
+# outright unless ALLOW_REMOTE_SEED is set for the environment.
+#
 # One worker: Render free is 0.1 CPU / 512 MB, and argon2 hashing is
 # memory-hard. A second worker would double peak memory for no throughput.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["sh", "-c", "python -m alembic upgrade head && python -m app.seed && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
