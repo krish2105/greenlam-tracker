@@ -5,14 +5,17 @@
 # cookie — cross-site cookies are effectively dead on iOS Safari, and a good
 # share of the floor is on iPhone.
 #
-# The database IS here, on Render's free plan, because this blueprint currently
-# serves a DEMO with synthetic data and nothing else.
+# The database is NOT declared here. It is a free Render Postgres named
+# greenlam-tracker-db that already exists in the workspace, and DATABASE_URL
+# references it by name. Render's free tier allows exactly one free Postgres
+# per workspace, so declaring one here fails while that instance exists.
 #
-# READ THIS BEFORE A PILOT: Render's free Postgres is DELETED AFTER 30 DAYS.
-# For anything real, provision Neon, delete the `databases:` block at the
-# bottom, and set DATABASE_URL back to `sync: false` so the connection string
-# is pasted in the dashboard instead. Losing a pilot's history the week
-# leadership reviews it is not a recoverable mistake (spec §0).
+# READ THIS BEFORE A PILOT: Render's free Postgres is DELETED AFTER 30 DAYS,
+# and this one goes on 30 September 2026. It is fine for a synthetic demo and
+# nothing else. For anything real, provision Neon and point DATABASE_URL at it
+# with `sync: false` so the connection string is pasted in the dashboard.
+# Losing a pilot's history the week leadership reviews it is not a recoverable
+# mistake (spec §0).
 #
 # Excel generation is NOT here either. It runs on the GitHub Actions runner
 # against Neon directly, via a read-only export_reader role (addendum §0).
@@ -34,8 +37,12 @@ services:
       - key: DEBUG
         value: "false"
       - key: DATABASE_URL
-        # Wired automatically from the database declared at the bottom of this
-        # file, so applying the blueprint needs nothing pasted by hand.
+        # Points at the greenlam-tracker-db instance that already exists in the
+        # workspace. Render's free tier allows exactly ONE free Postgres per
+        # workspace, so declaring a `databases:` block here fails with "cannot
+        # have more than one active free tier database" while that instance
+        # exists. Referencing it by name keeps the connection string out of
+        # this file and out of the dashboard.
         fromDatabase:
           name: greenlam-tracker-db
           property: connectionString
@@ -119,11 +126,3 @@ services:
       - path: /*
         name: Strict-Transport-Security
         value: max-age=31536000; includeSubDomains
-
-# Free plan, Singapore, deleted 30 days after creation. See the warning at the
-# top of this file before using it for anything but the demo.
-databases:
-  - name: greenlam-tracker-db
-    plan: free
-    region: singapore
-    postgresMajorVersion: "16"
