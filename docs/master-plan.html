@@ -1,0 +1,586 @@
+<title>Greenlam Plant Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+
+<style>
+  /* ------------------------------------------------------------------
+     Tokens inherited from the product this plan describes. The dashboard
+     already has a measured palette (every pair verified for contrast);
+     reusing it means the plan and the thing it plans read as one organism
+     rather than a deck about a product.
+     Light is the bare :root. Dark redefines tokens only.
+     ------------------------------------------------------------------ */
+  :root {
+    --paper:      #f7f6f2;
+    --surface:    #ffffff;
+    --surface-2:  #edebe2;
+    --line:       #e1ded3;
+    --line-2:     #cdc9bb;
+    --ink:        #22251f;
+    --ink-2:      #5f6458;   /* green-biased grey, not a default mid-grey */
+    --forest:     #1f5f3f;
+    --forest-2:   #2f7554;
+    --lime:       #a6ce39;
+    --lime-quiet: #eef4dc;
+    --clay:       #9a3f31;
+    --clay-quiet: #f5e3df;
+    --ochre:      #af7511;
+    --steel:      #3989c3;
+    --shadow:     0 1px 2px rgb(34 37 31 / .06), 0 1px 3px rgb(34 37 31 / .04);
+
+    --measure: 68ch;
+    --gap:  clamp(1.5rem, 1.1rem + 1.6vw, 2.75rem);
+    --rule: clamp(2.75rem, 2rem + 3vw, 4.5rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #0d0f0e;
+      --surface:    #1c221e;
+      --surface-2:  #262d28;
+      --line:       #333b35;
+      --line-2:     #47524a;
+      --ink:        #eceee9;
+      --ink-2:      #a3aba2;
+      --forest:     #7fd3a0;
+      --forest-2:   #50cc9f;
+      --lime:       #b5dc45;
+      --lime-quiet: #1f2a12;
+      --clay:       #f0908a;
+      --clay-quiet: #321c1b;
+      --ochre:      #e8ae6b;
+      --steel:      #86bde0;
+      --shadow:     0 1px 2px rgb(0 0 0 / .6), 0 4px 12px rgb(0 0 0 / .35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #0d0f0e;
+    --surface:    #1c221e;
+    --surface-2:  #262d28;
+    --line:       #333b35;
+    --line-2:     #47524a;
+    --ink:        #eceee9;
+    --ink-2:      #a3aba2;
+    --forest:     #7fd3a0;
+    --forest-2:   #50cc9f;
+    --lime:       #b5dc45;
+    --lime-quiet: #1f2a12;
+    --clay:       #f0908a;
+    --clay-quiet: #321c1b;
+    --ochre:      #e8ae6b;
+    --steel:      #86bde0;
+    --shadow:     0 1px 2px rgb(0 0 0 / .6), 0 4px 12px rgb(0 0 0 / .35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    font-size: 1.0625rem;
+    line-height: 1.65;          /* Devanagari-safe, and the product's own value */
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 78rem;
+    margin: 0 auto;
+    padding: clamp(2.5rem, 1.5rem + 4vw, 5rem) clamp(1.15rem, .6rem + 2.4vw, 3rem) 6rem;
+  }
+
+  /* --- the signature ------------------------------------------------
+     A laminate sheet in cross-section is a stack: overlay, decor paper,
+     kraft core, kraft core, backer. This rule draws that stack. It is the
+     one ornamental idea in the document and it comes from the product's
+     own material, so it earns its place. Used only as a section marker.
+     ------------------------------------------------------------------ */
+  .laminate {
+    display: flex;
+    height: 7px;
+    width: 84px;
+    border-radius: 1px;
+    overflow: hidden;
+    margin-bottom: 1.1rem;
+  }
+  .laminate i { display: block; height: 100%; }
+  .laminate i:nth-child(1) { flex: 0 0 10%; background: var(--lime); }
+  .laminate i:nth-child(2) { flex: 0 0 14%; background: var(--forest); }
+  .laminate i:nth-child(3) { flex: 1 1 auto; background: var(--ochre); opacity: .55; }
+  .laminate i:nth-child(4) { flex: 0 0 22%; background: var(--clay); opacity: .5; }
+  .laminate i:nth-child(5) { flex: 0 0 12%; background: var(--ink-2); opacity: .45; }
+
+  /* --- type --------------------------------------------------------- */
+  h1, h2, h3 {
+    font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+    text-wrap: balance;
+    margin: 0;
+    letter-spacing: -.015em;
+  }
+  h1 { font-size: clamp(2.15rem, 1.5rem + 3.1vw, 3.6rem); font-weight: 700; line-height: 1.05; }
+  h2 { font-size: clamp(1.5rem, 1.2rem + 1.3vw, 2.1rem); font-weight: 600; line-height: 1.15; }
+  h3 { font-size: 1.1875rem; font-weight: 600; line-height: 1.3; }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: .75rem;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin: 0 0 .55rem;
+  }
+
+  p, li { max-width: var(--measure); }
+  p { margin: 0 0 1.05rem; }
+  a { color: var(--forest); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 600; }
+  code, .mono, .num {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  section { margin-top: var(--rule); }
+  section > h2 + p { margin-top: .85rem; }
+
+  .lede {
+    font-size: clamp(1.125rem, 1.05rem + .4vw, 1.3125rem);
+    line-height: 1.55;
+    color: var(--ink-2);
+    max-width: 60ch;
+  }
+
+  /* --- masthead ----------------------------------------------------- */
+  .masthead { border-bottom: 1px solid var(--line); padding-bottom: var(--gap); }
+  .stamp {
+    display: inline-flex; align-items: center; gap: .5rem;
+    font-family: 'IBM Plex Mono', monospace; font-size: .75rem;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: var(--forest);
+    background: var(--lime-quiet);
+    padding: .3rem .6rem; border-radius: 3px;
+    margin-bottom: 1.3rem;
+  }
+  .byline {
+    display: flex; flex-wrap: wrap; gap: .4rem 1.4rem;
+    margin-top: 1.6rem; padding-top: 1.1rem;
+    border-top: 1px solid var(--line);
+    font-family: 'IBM Plex Mono', monospace; font-size: .8125rem;
+    color: var(--ink-2);
+  }
+
+  /* --- panels ------------------------------------------------------- */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: clamp(1.1rem, .8rem + 1vw, 1.75rem);
+    box-shadow: var(--shadow);
+  }
+  .panel > :last-child { margin-bottom: 0; }
+  .panel.warn { border-left: 3px solid var(--ochre); }
+  .panel.cost { border-left: 3px solid var(--clay); }
+  .panel.go   { border-left: 3px solid var(--forest); }
+
+  .grid { display: grid; gap: 1rem; }
+  @media (min-width: 46rem) { .grid.two   { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 60rem) { .grid.three { grid-template-columns: repeat(3, 1fr); } }
+
+  /* --- figures ------------------------------------------------------ */
+  .figures { display: flex; flex-wrap: wrap; gap: 1.75rem 2.75rem; margin: 1.5rem 0 0; padding: 0; }
+  .figures > div { }
+  .figures dt { font-size: .8125rem; color: var(--ink-2); margin-bottom: .1rem; }
+  .figures dd {
+    margin: 0;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+    font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .figures .sub { font-size: .8125rem; color: var(--ink-2); font-family: 'IBM Plex Sans', sans-serif; font-weight: 400; }
+
+  /* --- tables ------------------------------------------------------- */
+  .scroll { overflow-x: auto; margin-top: 1.2rem; }
+  table { border-collapse: collapse; width: 100%; min-width: 34rem; font-size: .9375rem; }
+  th, td { text-align: left; padding: .6rem .85rem .6rem 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-family: 'IBM Plex Mono', monospace; font-size: .7rem;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2);
+    font-weight: 500; border-bottom-color: var(--line-2);
+  }
+  td.num, th.num { text-align: right; font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; padding-right: 0; }
+  tbody tr:last-child td { border-bottom: none; }
+  .total td { border-top: 1px solid var(--line-2); font-weight: 600; }
+
+  /* --- feature ledger ----------------------------------------------- */
+  .feat { list-style: none; padding: 0; margin: 1.1rem 0 0; display: grid; gap: .1rem; }
+  .feat > li {
+    max-width: none;
+    display: grid; gap: .15rem .9rem;
+    grid-template-columns: 1fr;
+    padding: .8rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+  @media (min-width: 52rem) {
+    .feat > li { grid-template-columns: minmax(0,1fr) 8.5rem 9rem; align-items: baseline; }
+  }
+  .feat .what { font-weight: 500; }
+  .feat .why  { grid-column: 1 / -1; color: var(--ink-2); font-size: .9375rem; max-width: var(--measure); }
+  .feat .meta {
+    font-family: 'IBM Plex Mono', monospace; font-size: .75rem;
+    color: var(--ink-2); letter-spacing: .04em;
+  }
+
+  .tag {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace; font-size: .6875rem;
+    letter-spacing: .08em; text-transform: uppercase;
+    padding: .15rem .45rem; border-radius: 3px;
+    border: 1px solid var(--line-2); color: var(--ink-2);
+  }
+  .tag.built { border-color: var(--forest); color: var(--forest); background: var(--lime-quiet); }
+  .tag.bet   { border-color: var(--clay);   color: var(--clay);   background: var(--clay-quiet); }
+
+  /* --- phases: a real sequence, so numbering carries information ----- */
+  .phases { list-style: none; padding: 0; margin: 1.3rem 0 0; display: grid; gap: 1rem; }
+  .phases > li { max-width: none; display: grid; grid-template-columns: 2.6rem 1fr; gap: 0 1rem; }
+  .phases .n {
+    font-family: 'IBM Plex Mono', monospace; font-weight: 500;
+    font-size: .8125rem; color: var(--forest);
+    border-top: 2px solid var(--forest); padding-top: .5rem;
+  }
+  .phases .body { border-top: 1px solid var(--line); padding-top: .5rem; }
+  .phases h3 { margin-bottom: .2rem; }
+  .phases .gate {
+    margin-top: .5rem; font-size: .9375rem; color: var(--ink-2);
+    padding-left: .8rem; border-left: 2px solid var(--line-2);
+  }
+
+  ul.plain { padding-left: 1.15rem; margin: 0 0 1.05rem; }
+  ul.plain li { margin-bottom: .4rem; }
+
+  .ask { counter-reset: ask; list-style: none; padding: 0; margin: 1.2rem 0 0; display: grid; gap: .75rem; }
+  .ask > li {
+    max-width: none;
+    display: grid; grid-template-columns: 1.9rem 1fr; gap: 0 .75rem;
+    align-items: start;
+  }
+  .ask > li::before {
+    counter-increment: ask; content: counter(ask, decimal-leading-zero);
+    font-family: 'IBM Plex Mono', monospace; font-size: .8125rem;
+    color: var(--clay); padding-top: .15rem;
+  }
+
+  footer {
+    margin-top: var(--rule); padding-top: 1.3rem;
+    border-top: 1px solid var(--line);
+    font-size: .875rem; color: var(--ink-2);
+  }
+
+  :focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; border-radius: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <span class="stamp">Synthetic data · not yet cleared for plant hosting</span>
+    <h1>Knowing what the plant costs, while there is still time to change it</h1>
+    <p class="lede">A maintenance and production intelligence system for Greenlam Laminates — what is built, what it is worth, and what to build next.</p>
+    <div class="byline">
+      <span>Master plan · v1</span>
+      <span>Phase&nbsp;1–5 complete</span>
+      <span>25 August 2026</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+    <p class="eyebrow">The argument</p>
+    <h2>A register that only records is a cost. One that answers is an asset.</h2>
+    <p>Greenlam's plants already keep a breakdown register. It is diligent, it is detailed, and by the time anyone reads it the press has been down for a week. The data exists; the <em>answer</em> does not, because nobody can pivot a four-thousand-row spreadsheet before the morning meeting ends.</p>
+    <p>This system does not replace that habit. It reads the same register, in the same shape, and turns it into the four sentences a plant head actually needs: which machines cost the most, what causes most of the downtime, whether it is getting better, and which machine is about to fail. Everything else in this document is downstream of that.</p>
+
+    <div class="panel warn" style="margin-top:1.5rem">
+      <p><strong>One discipline runs through the whole build, and through this plan: never print a number you cannot source.</strong> The dashboard refuses to show a rupee cost of downtime because nobody has given it an hourly rate per machine — it says so, in words, rather than showing a guess that would be quoted in a board meeting six months later. This document holds itself to the same rule. Public figures are cited. Plant figures are marked as missing. Nothing in between is invented.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+    <p class="eyebrow">Chief Financial Officer</p>
+    <h2>The size of the prize</h2>
+    <p>Greenlam Industries closed FY26 at roughly <strong>₹3,000 crore of revenue, up 18% year on year</strong>, running about <strong>24 million sheets of laminate capacity with a further 2 million being added</strong>, across five states. Management has reaffirmed a <strong>16% laminate EBITDA margin</strong> guidance, with group operating margins guided at 11.0–11.5%.</p>
+    <p>Those numbers set the scale of what a percentage point is worth. At that capacity, every <span class="mono">0.1</span> percentage point of reject rate is roughly <strong>26,000 sheets a year</strong> — scrapped after they have already absorbed decor paper, resin, press time and energy.</p>
+
+    <div class="scroll">
+      <table>
+        <caption class="eyebrow" style="text-align:left; margin-bottom:.6rem">The model — public anchors in green, plant inputs still missing in clay</caption>
+        <thead>
+          <tr><th>Input</th><th>Value</th><th>Source</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Annual sheet capacity</td><td class="num">26,000,000</td><td><span class="tag built">Public</span></td></tr>
+          <tr><td>Laminate EBITDA margin</td><td class="num">16%</td><td><span class="tag built">Public</span></td></tr>
+          <tr><td>Reject rate today</td><td class="num">?</td><td><span class="tag bet">From your register</span></td></tr>
+          <tr><td>Contribution lost per scrapped sheet</td><td class="num">?</td><td><span class="tag bet">Costing team</span></td></tr>
+          <tr><td>Downtime hours per year</td><td class="num">?</td><td><span class="tag bet">From your register</span></td></tr>
+          <tr><td>Contribution lost per press-hour down</td><td class="num">?</td><td><span class="tag bet">Costing team</span></td></tr>
+          <tr class="total"><td>Annual recoverable loss</td><td class="num">computable</td><td>on receipt of four numbers</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:1.3rem">Four numbers stand between this and a defensible business case. Three of them are already in the plant's spreadsheets; the fourth is a costing exercise of about a day. The system is built to compute the rest the moment they arrive — the arithmetic is written and waiting behind a feature flag, not a slide.</p>
+    <p>For comparison on the cost side: commercial maintenance platforms price at roughly <strong>$35–75 per user per month</strong>, with the AI capability reserved for the upper tiers. At even fifty floor users across one plant, that is a recurring line item before a single sheet is saved — and it buys a product that does not know what a laminate is.</p>
+  </section>
+
+  <section>
+    <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+    <p class="eyebrow">Chief Marketing Officer &amp; Chief Revenue Officer</p>
+    <h2>Why buying this does not solve it</h2>
+    <p>The maintenance software market is mature and the leaders are good at what they do. MaintainX won by making software technicians actually enjoy using, and now scans work-order history for anomaly patterns. Limble leads on sensor integrations and shipped AI resource planning and image-recognition asset capture. UpKeep is mobile-first and broad.</p>
+    <p>Every one of them is <strong>asset-centric</strong>. They model a machine, a work order, and a technician. That is the right model for a fleet of pumps in a water utility.</p>
+    <p>It is the wrong model for a laminate plant, and the reason is physical. In short-cycle pressing, <strong>blistering is in most cases the consequence of unstable impregnation and incomplete drying — it originates upstream of the press, not at it.</strong> Residual moisture flashes to vapour under the platen and lifts the layers. The defect is <em>observed</em> at Press-4. It was <em>caused</em> at IMP-7, hours earlier, on a different machine in a different section owned by a different supervisor.</p>
+
+    <div class="panel go" style="margin-top:1.5rem">
+      <p><strong>An asset-centric system will log that as a Press-4 defect for ever.</strong> It will build a Pareto that says the press is the problem, a maintenance budget that re-plates the press, and a reject rate that does not move. The competitive opening is not a better work-order form. It is modelling the <em>material</em> as it flows between sections, so a reject can be attributed to where it was actually created.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+    <p class="eyebrow">Where this stands</p>
+    <h2>Built and verified</h2>
+    <p>Phases 1 through 5 are complete and running against 90 days of synthetic history. The verification below is machine-checked on every change, not asserted.</p>
+    <dl class="figures">
+      <div><dt>API tests passing</dt><dd>111</dd><div class="sub">including 23 on the register importer</div></div>
+      <div><dt>Shared-logic tests</dt><dd>69</dd><div class="sub">sync reducer, roles, tickets</div></div>
+      <div><dt>Type errors</dt><dd>0</dd><div class="sub">strict, no <code>any</code> escape hatches</div></div>
+      <div><dt>Locale parity</dt><dd>349 × 3</dd><div class="sub">en · हिंदी · Hinglish, no drift</div></div>
+      <div><dt>Floor bundle</dt><dd>158 KB</dd><div class="sub">gzipped; board and import are lazy</div></div>
+    </dl>
+
+    <div class="grid two" style="margin-top:1.6rem">
+      <div class="panel">
+        <h3>What works today</h3>
+        <ul class="plain">
+          <li>PIN sign-in with graduated lockout; ten roles from shareholder to operator</li>
+          <li>Three-axis access — capability × scope × resolution, so a shareholder sees the <em>least</em> detail</li>
+          <li>Thirty-second breakdown reporting, by QR scan or by typing a code</li>
+          <li>Guided why-why with a quality score that rejects "belt issue" as unusable</li>
+          <li>Offline queue that survives a six-hour signal gap and reconciles three devices</li>
+          <li>Interactive charts — hover, tap, arrow-key, click-to-drill — responsive to 375px</li>
+          <li>End-to-end English / हिंदी / Hinglish, including server-driven alerts</li>
+          <li>Excel register import with a dry run, per-row errors, and safe re-upload</li>
+          <li>Nightly workbook with the register's headers preserved exactly</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>What is honest about its limits</h3>
+        <ul class="plain">
+          <li>No rupee cost of downtime — no hourly rate has been supplied</li>
+          <li>Availability computed on calendar hours, labelled as such, until scheduled hours arrive</li>
+          <li>All machines seeded criticality B; A/B/C is a plant judgement</li>
+          <li>The quality-decay-before-failure signal is a hypothesis on synthetic data, and says so on screen</li>
+          <li>Shift timings are a placeholder 3×8</li>
+          <li>Section and category names are bilingual; machine names are not yet</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+    <p class="eyebrow">The differentiated bets</p>
+    <h2>Five things no competitor can easily copy</h2>
+    <p>These are not features on a comparison grid. Each depends on knowing what a laminate is, which is precisely what a horizontal product cannot afford to learn.</p>
+
+    <ol class="feat" style="counter-reset:none">
+      <li>
+        <span class="what">Cross-section causal attribution</span>
+        <span class="meta">Manufacturing head</span>
+        <span class="meta">Reject rate</span>
+        <span class="why">Carry the decor-paper lot and impregnation line forward with the sheet, so a blister found at the press is attributed to the impregnation run that caused it. Turns "Press-4 has a quality problem" into "IMP-7's drying was drifting on Tuesday nights". This is the flagship bet and the hardest to copy.</span>
+      </li>
+      <li>
+        <span class="what">Batch genealogy and complaint traceback</span>
+        <span class="meta">CRO</span>
+        <span class="meta">Warranty cost</span>
+        <span class="why">A distributor reports delamination on a batch. Walk backwards from the sheet to the press cycle, the shift, the resin batch and the paper lot in seconds instead of days — and know whether the rest of that lot is still in the warehouse or already in someone's kitchen.</span>
+      </li>
+      <li>
+        <span class="what">Hindi and Hinglish voice-to-ticket</span>
+        <span class="meta">COO</span>
+        <span class="meta">Adoption</span>
+        <span class="why">The single largest barrier to write-up quality is that a technician who diagnosed the fault perfectly does not want to type three paragraphs on a phone in a second language. Let them say it, in the language they think in, and extract the structure. The interface is already trilingual; this makes the <em>input</em> trilingual too.</span>
+      </li>
+      <li>
+        <span class="what">Retrieval over the plant's own history</span>
+        <span class="meta">AI engineering</span>
+        <span class="meta">First-time fix</span>
+        <span class="why">When a technician opens a ticket on Press-4, show the three most similar breakdowns from the register and what actually fixed them. Retrieval, not generation — it surfaces what a colleague already wrote and can be checked, rather than inventing a plausible repair procedure for a hydraulic press.</span>
+      </li>
+      <li>
+        <span class="what">Quality decay as a failure predictor</span>
+        <span class="meta">Engineering head</span>
+        <span class="meta">Unplanned downtime</span>
+        <span class="why">Reject rate rising on a machine before it fails is a free condition-monitoring signal — no sensor, no retrofit, no capex. The synthetic data shows the shape; whether it holds on real production is the most valuable single question the pilot can answer.</span>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+    <p class="eyebrow">The backlog</p>
+    <h2>Everything else worth building</h2>
+    <p>Ordered by horizon. Each line names the executive who should sponsor it and the number it is supposed to move — a feature that cannot name its metric does not belong on a roadmap.</p>
+
+    <h3 style="margin-top:1.9rem">Horizon 1 · next quarter, on the pilot</h3>
+    <ul class="feat">
+      <li><span class="what">Downtime cost per machine</span><span class="meta">CFO</span><span class="meta">₹ recovered</span>
+        <span class="why">The arithmetic is written and disabled. Unlocks every rupee figure in the product, including the auto-prioritised maintenance budget.</span></li>
+      <li><span class="what">WhatsApp escalation</span><span class="meta">COO</span><span class="meta">Time to acknowledge</span>
+        <span class="why">In an Indian plant this is the channel that actually gets read. Email escalation is a compliance artefact; WhatsApp is a response.</span></li>
+      <li><span class="what">Condition-based PM scheduling</span><span class="meta">Engineering head</span><span class="meta">MTBF</span>
+        <span class="why">Trigger preventive work on running hours and cycle counts rather than the calendar. Calendar PM services machines that did not need it and misses ones that did.</span></li>
+      <li><span class="what">Machine criticality A/B/C</span><span class="meta">Plant head</span><span class="meta">Response time</span>
+        <span class="why">Drives differentiated response targets. Currently every machine is seeded B, which means the escalation clock treats the Paper Crane like Press-4.</span></li>
+      <li><span class="what">Spare parts and min-stock</span><span class="meta">Engineering head</span><span class="meta">MTTR</span>
+        <span class="why">A large share of repair time is waiting for a part. Criticality-weighted minimum stock is the cheapest MTTR reduction available.</span></li>
+      <li><span class="what">Wall-display mode</span><span class="meta">Plant head</span><span class="meta">Adoption</span>
+        <span class="why">A non-interactive rotating board for the press hall TV. Makes the data ambient rather than something you have to remember to open.</span></li>
+      <li><span class="what">Manuals and drawings behind the QR</span><span class="meta">Engineering head</span><span class="meta">First-time fix</span>
+        <span class="why">The QR label is already on the machine and already resolves. Putting the manual behind it costs one screen.</span></li>
+      <li><span class="what">Bilingual machine names</span><span class="meta">UX</span><span class="meta">Adoption</span>
+        <span class="why">Sections and categories are bilingual; machine names are not. One seeding pass closes the last gap in the Hindi interface.</span></li>
+    </ul>
+
+    <h3 style="margin-top:2.2rem">Horizon 2 · once the pilot is signed off</h3>
+    <ul class="feat">
+      <li><span class="what">Impregnation SPC</span><span class="meta">Manufacturing head</span><span class="meta">Reject rate</span>
+        <span class="why">Resin pickup, volatile content and dryer profile as control charts. This is where blistering is born, and it is currently unmeasured by this system.</span></li>
+      <li><span class="what">Press platen heat map</span><span class="meta">Manufacturing head</span><span class="meta">Reject rate</span>
+        <span class="why">Uneven platen temperature causes blistering, under-cure and colour inconsistency. Zone-level temperature makes an invisible cause visible.</span></li>
+      <li><span class="what">Changeover timing (SMED)</span><span class="meta">COO</span><span class="meta">OEE</span>
+        <span class="why">Texture and plate changes are planned downtime nobody currently measures, which means nobody is improving it.</span></li>
+      <li><span class="what">Cost of poor quality dashboard</span><span class="meta">CFO</span><span class="meta">COPQ</span>
+        <span class="why">Scrap, rework, and the downtime caused by quality escapes, in one number a board recognises.</span></li>
+      <li><span class="what">Supplier quality correlation</span><span class="meta">Procurement</span><span class="meta">Input cost</span>
+        <span class="why">Reject rate by decor-paper supplier and resin batch. Turns a purchasing conversation from price into total cost.</span></li>
+      <li><span class="what">Photo-to-defect classification</span><span class="meta">AI engineering</span><span class="meta">Data quality</span>
+        <span class="why">Operators photograph defects readily and write them up reluctantly. Classify from the photo and the reject reason stops being a dropdown people rush.</span></li>
+      <li><span class="what">Natural-language query</span><span class="meta">CTO</span><span class="meta">Time to insight</span>
+        <span class="why">"Every Press-4 hydraulic failure since April" without a pivot table. The audience for this is the plant head, not the analyst.</span></li>
+      <li><span class="what">Skills matrix</span><span class="meta">Senior VP</span><span class="meta">MTTR</span>
+        <span class="why">Who can actually fix what. Drives assignment and exposes single points of human failure — the technician whose leave stops a section.</span></li>
+      <li><span class="what">Digital permit-to-work</span><span class="meta">Safety</span><span class="meta">Incidents</span>
+        <span class="why">Lockout-tagout as a record attached to the ticket rather than a paper book in an office.</span></li>
+    </ul>
+
+    <h3 style="margin-top:2.2rem">Horizon 3 · multi-plant</h3>
+    <ul class="feat">
+      <li><span class="what">Cross-plant benchmarking</span><span class="meta">CEO</span><span class="meta">Group OEE</span>
+        <span class="why">Five states, one definition of MTTR. The database has carried <code>plant_id</code> on every row since the first migration precisely so this needs no rewrite — only plant-level comparison, never individual ranking.</span></li>
+      <li><span class="what">Retrofit sensors on the worst five machines</span><span class="meta">Engineering head</span><span class="meta">Unplanned downtime</span>
+        <span class="why">Vibration and temperature, on the machines the Pareto has already named. Instrumenting everything is how IoT projects die; instrumenting five is how they pay back.</span></li>
+      <li><span class="what">Capex justification pack</span><span class="meta">CFO</span><span class="meta">Capital efficiency</span>
+        <span class="why">Auto-assemble the downtime, scrap and MTBF history for a machine into the business case for replacing it. The evidence already exists; today somebody rebuilds it by hand each time.</span></li>
+      <li><span class="what">Downtime to dispatch linkage</span><span class="meta">CRO</span><span class="meta">OTIF</span>
+        <span class="why">Connect a press stoppage to the order it delayed. This is the number that makes maintenance a commercial conversation rather than an engineering one.</span></li>
+      <li><span class="what">Batch quality certificate</span><span class="meta">CMO</span><span class="meta">Realisation</span>
+        <span class="why">Traceable per-batch quality data is a specification-grade selling point to architects and large fit-out contractors, not just an internal control.</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+    <p class="eyebrow">Chief Operating Officer</p>
+    <h2>How this rolls out</h2>
+    <p>Each phase ends at a decision gate with a stated pass condition. A gate that does not pass stops the rollout rather than escalating the budget.</p>
+
+    <ol class="phases">
+      <li>
+        <span class="n">01</span>
+        <div class="body">
+          <h3>Import the history</h3>
+          <p>Upload the existing breakdown register. Nothing about the plant changes; the system simply learns what already happened.</p>
+          <p class="gate"><strong>Gate.</strong> The Pareto built from your real register is recognisable to the plant head as a true picture of the last two years. If it is not, the import mapping is wrong and nothing downstream is trustworthy.</p>
+        </div>
+      </li>
+      <li>
+        <span class="n">02</span>
+        <div class="body">
+          <h3>One section, parallel running</h3>
+          <p>Press only. The register keeps being filled in on paper; the app runs alongside it for four weeks. Both are compared weekly.</p>
+          <p class="gate"><strong>Gate.</strong> Reporting by scan is measurably faster than by paper, and at least three-quarters of breakdowns in the section get reported in the app without being chased.</p>
+        </div>
+      </li>
+      <li>
+        <span class="n">03</span>
+        <div class="body">
+          <h3>Whole plant, register retired</h3>
+          <p>All sections. The spreadsheet stops being the source of truth and becomes the nightly export instead — same headers, same pivot tables, no retraining for leadership.</p>
+          <p class="gate"><strong>Gate.</strong> Root-cause quality above the threshold the plant sets, and the leadership workbook lands every night without anyone touching it.</p>
+        </div>
+      </li>
+      <li>
+        <span class="n">04</span>
+        <div class="body">
+          <h3>Prove the predictor</h3>
+          <p>Test the quality-decay-before-failure signal against real production. Publish the result either way.</p>
+          <p class="gate"><strong>Gate.</strong> The correlation holds on real data, or it is retired publicly. A predictive claim that quietly stops being mentioned is worse than one that was never made.</p>
+        </div>
+      </li>
+      <li>
+        <span class="n">05</span>
+        <div class="body">
+          <h3>Second plant</h3>
+          <p>The multi-tenancy is already in the schema. This phase tests whether the <em>process</em> travels, which is the part that usually does not.</p>
+          <p class="gate"><strong>Gate.</strong> The second plant reaches Phase 3 in half the elapsed time of the first.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+    <p class="eyebrow">Blocked on you</p>
+    <h2>What only Greenlam can supply</h2>
+    <p>None of these are engineering work. Each one is currently the reason a built feature is switched off.</p>
+    <ol class="ask">
+      <li><div><strong>Hourly downtime cost per machine.</strong> Unlocks every rupee figure in the product. A costing exercise of about a day.</div></li>
+      <li><div><strong>Real shift timings.</strong> Currently a placeholder 3×8. Shift analysis is already the sharpest finding in the data and it is running on assumed boundaries.</div></li>
+      <li><div><strong>Criticality A/B/C per machine.</strong> A plant judgement, not a calculation. Drives response targets.</div></li>
+      <li><div><strong>Scheduled production hours.</strong> Turns availability from calendar-based — which the dashboard currently labels honestly as approximate — into a real OEE input.</div></li>
+      <li><div><strong>Written approval to host real plant data.</strong> Everything to date runs on synthetic data, enforced in code: the seeding script refuses to write to a non-local database. Nothing real moves until this exists in writing.</div></li>
+      <li><div><strong>One breakdown register file.</strong> The importer is built and tested. It needs a real file to prove the mapping against, and that is the Phase 1 gate.</div></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+    <p class="eyebrow">Risks</p>
+    <h2>What would make this fail</h2>
+    <div class="grid three">
+      <div class="panel cost">
+        <h3>Write-ups decay</h3>
+        <p style="margin:0">Root causes degrade to "belt issue" within a fortnight and the analytics describe nothing. Mitigated by the guided why-why and a quality score, but the real defence is voice input in Hindi.</p>
+      </div>
+      <div class="panel cost">
+        <h3>Measurement becomes surveillance</h3>
+        <p style="margin:0">The moment individual metrics are used to rank people, reporting stops. Enforced in code: individual figures are visible to that person and their direct supervisor only, never ranked, never exported.</p>
+      </div>
+      <div class="panel cost">
+        <h3>The register keeps running</h3>
+        <p style="margin:0">If the spreadsheet survives alongside the app, both are half-maintained. Phase 3 exists specifically to kill it, and the nightly export exists so that killing it costs leadership nothing.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p style="max-width:var(--measure)">Public financial and capacity figures from Greenlam Industries FY26 results coverage and ICRA rating commentary; maintenance-platform pricing and capability comparisons from published 2026 CMMS market reviews; laminate press and impregnation defect mechanisms from industry technical literature. All plant-specific figures in this document are synthetic until the register is imported.</p>
+  </footer>
+
+</div>

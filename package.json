@@ -1,0 +1,25 @@
+{
+  "name": "greenlam-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "dashboard"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @greenlam/dashboard",
+    "build": "npm run build --workspace @greenlam/dashboard",
+    "preview": "npm run preview --workspace @greenlam/dashboard",
+    "test": "npm run test --workspace @greenlam/core",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "csp:hash": "node scripts/csp-hash.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "fsevents@2.3.3": true
+  }
+}

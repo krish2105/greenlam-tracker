@@ -1,0 +1,466 @@
+<title>Greenlam Demo Runbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+
+<style>
+  :root {
+    --paper:      #f7f6f2;
+    --surface:    #ffffff;
+    --surface-2:  #edebe2;
+    --line:       #e1ded3;
+    --line-2:     #cdc9bb;
+    --ink:        #22251f;
+    --ink-2:      #5f6458;
+    --forest:     #1f5f3f;
+    --lime:       #a6ce39;
+    --lime-quiet: #eef4dc;
+    --clay:       #9a3f31;
+    --clay-quiet: #f5e3df;
+    --ochre:      #af7511;
+    --ochre-quiet:#f7efdf;
+    --term-bg:    #1c221e;
+    --term-ink:   #eceee9;
+    --shadow:     0 1px 2px rgb(34 37 31 / .06), 0 1px 3px rgb(34 37 31 / .04);
+    --measure: 70ch;
+    --rule: clamp(2.5rem, 1.8rem + 2.8vw, 4rem);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0d0f0e; --surface: #1c221e; --surface-2: #262d28;
+      --line: #333b35; --line-2: #47524a;
+      --ink: #eceee9; --ink-2: #a3aba2;
+      --forest: #7fd3a0; --lime: #b5dc45; --lime-quiet: #1f2a12;
+      --clay: #f0908a; --clay-quiet: #321c1b;
+      --ochre: #e8ae6b; --ochre-quiet: #2e2416;
+      --term-bg: #050706; --term-ink: #d7ddd6;
+      --shadow: 0 1px 2px rgb(0 0 0 / .6), 0 4px 12px rgb(0 0 0 / .35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0d0f0e; --surface: #1c221e; --surface-2: #262d28;
+    --line: #333b35; --line-2: #47524a;
+    --ink: #eceee9; --ink-2: #a3aba2;
+    --forest: #7fd3a0; --lime: #b5dc45; --lime-quiet: #1f2a12;
+    --clay: #f0908a; --clay-quiet: #321c1b;
+    --ochre: #e8ae6b; --ochre-quiet: #2e2416;
+    --term-bg: #050706; --term-ink: #d7ddd6;
+    --shadow: 0 1px 2px rgb(0 0 0 / .6), 0 4px 12px rgb(0 0 0 / .35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    font-size: 1.0625rem; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 60rem; margin: 0 auto;
+    padding: clamp(2.25rem, 1.4rem + 3.5vw, 4.5rem) clamp(1.1rem, .6rem + 2.2vw, 2.5rem) 6rem;
+  }
+
+  /* Laminate cross-section, same signature device as the master plan. */
+  .laminate { display: flex; height: 7px; width: 84px; border-radius: 1px; overflow: hidden; margin-bottom: 1rem; }
+  .laminate i { height: 100%; }
+  .laminate i:nth-child(1){ flex:0 0 10%; background: var(--lime); }
+  .laminate i:nth-child(2){ flex:0 0 14%; background: var(--forest); }
+  .laminate i:nth-child(3){ flex:1 1 auto; background: var(--ochre); opacity:.55; }
+  .laminate i:nth-child(4){ flex:0 0 22%; background: var(--clay); opacity:.5; }
+  .laminate i:nth-child(5){ flex:0 0 12%; background: var(--ink-2); opacity:.45; }
+
+  h1,h2,h3 { font-family:'Space Grotesk','IBM Plex Sans',sans-serif; margin:0; text-wrap:balance; letter-spacing:-.015em; }
+  h1 { font-size: clamp(2rem, 1.4rem + 2.8vw, 3.1rem); font-weight:700; line-height:1.06; }
+  h2 { font-size: clamp(1.4rem, 1.15rem + 1.1vw, 1.9rem); font-weight:600; line-height:1.18; }
+  h3 { font-size: 1.125rem; font-weight:600; line-height:1.35; }
+  .eyebrow {
+    font-family:'IBM Plex Mono',monospace; font-size:.72rem; letter-spacing:.13em;
+    text-transform:uppercase; color:var(--ink-2); margin:0 0 .5rem;
+  }
+  p, li { max-width: var(--measure); }
+  p { margin: 0 0 1rem; }
+  strong { font-weight:600; }
+  code {
+    font-family:'IBM Plex Mono',monospace; font-size:.875em;
+    background: var(--surface-2); padding:.1em .35em; border-radius:3px;
+  }
+  section { margin-top: var(--rule); }
+  .lede { font-size: clamp(1.1rem,1.03rem+.35vw,1.25rem); line-height:1.55; color:var(--ink-2); max-width:58ch; }
+
+  header.masthead { border-bottom:1px solid var(--line); padding-bottom:1.6rem; }
+  .stamp {
+    display:inline-flex; gap:.5rem; align-items:center;
+    font-family:'IBM Plex Mono',monospace; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--forest); background:var(--lime-quiet); padding:.3rem .6rem; border-radius:3px; margin-bottom:1.2rem;
+  }
+
+  /* Terminal blocks — the thing this document is mostly made of. */
+  pre {
+    margin: .9rem 0 1.2rem; padding: 1rem 1.1rem; border-radius:5px;
+    background: var(--term-bg); color: var(--term-ink);
+    font-family:'IBM Plex Mono',monospace; font-size:.8125rem; line-height:1.7;
+    overflow-x:auto; border:1px solid var(--line);
+  }
+  pre .c { color: #7f8c84; }         /* comment */
+  pre .p { color: var(--lime); }     /* prompt marker */
+
+  .panel {
+    background:var(--surface); border:1px solid var(--line); border-radius:4px;
+    padding: clamp(1rem,.8rem+.7vw,1.4rem); box-shadow:var(--shadow); margin:1.2rem 0;
+  }
+  .panel > :last-child { margin-bottom:0; }
+  .panel.warn { border-left:3px solid var(--ochre); background:var(--ochre-quiet); }
+  .panel.stop { border-left:3px solid var(--clay); }
+  .panel.go   { border-left:3px solid var(--forest); }
+
+  .scroll { overflow-x:auto; margin:1.1rem 0; }
+  table { border-collapse:collapse; width:100%; min-width:30rem; font-size:.9375rem; }
+  th,td { text-align:left; padding:.55rem .8rem .55rem 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-family:'IBM Plex Mono',monospace; font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-2); font-weight:500; border-bottom-color:var(--line-2); }
+  td.mono, th.mono { font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; }
+  tbody tr:last-child td { border-bottom:none; }
+
+  /* Steps — a real sequence, so the numbers carry information. */
+  .steps { list-style:none; counter-reset:step; padding:0; margin:1.3rem 0 0; display:grid; gap:1.4rem; }
+  .steps > li { max-width:none; display:grid; grid-template-columns:2.4rem 1fr; gap:0 1rem; }
+  .steps > li::before {
+    counter-increment:step; content:counter(step,decimal-leading-zero);
+    font-family:'IBM Plex Mono',monospace; font-size:.8125rem; font-weight:500;
+    color:var(--forest); border-top:2px solid var(--forest); padding-top:.5rem;
+  }
+  .steps .body { border-top:1px solid var(--line); padding-top:.5rem; min-width:0; }
+  .steps h3 { margin-bottom:.3rem; }
+
+  /* Demo beats — timed, so the reader can pace a 12-minute slot. */
+  .beats { list-style:none; padding:0; margin:1.3rem 0 0; display:grid; gap:1.1rem; }
+  .beats > li { max-width:none; }
+  .beat-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:.5rem .8rem; }
+  .clock {
+    font-family:'IBM Plex Mono',monospace; font-size:.75rem; font-weight:500;
+    color:var(--forest); background:var(--lime-quiet); padding:.15rem .45rem; border-radius:3px;
+  }
+  .who { font-family:'IBM Plex Mono',monospace; font-size:.75rem; color:var(--ink-2); }
+  .say {
+    margin:.5rem 0 0; padding-left:.85rem; border-left:2px solid var(--line-2);
+    color:var(--ink-2); font-size:.9375rem;
+  }
+  .say b { color:var(--ink); font-weight:600; }
+
+  ul.plain { padding-left:1.15rem; margin:0 0 1rem; }
+  ul.plain li { margin-bottom:.35rem; }
+
+  .kbd {
+    font-family:'IBM Plex Mono',monospace; font-size:.78rem;
+    border:1px solid var(--line-2); border-bottom-width:2px; border-radius:4px;
+    padding:.05rem .35rem; background:var(--surface);
+  }
+  a { color:var(--forest); text-underline-offset:2px; }
+  footer { margin-top:var(--rule); padding-top:1.2rem; border-top:1px solid var(--line); font-size:.875rem; color:var(--ink-2); }
+  :focus-visible { outline:2px solid var(--forest); outline-offset:2px; border-radius:2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation:none!important; transition:none!important; } }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <span class="stamp">Hand this to whoever is running the demo</span>
+  <h1>Get it running, then show it in twelve minutes</h1>
+  <p class="lede">Everything needed to take this repository from a fresh laptop to a live demonstration in front of a board — including what to click, what to say, and what to answer when they push back.</p>
+</header>
+
+<section>
+  <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  <p class="eyebrow">Before you start</p>
+  <h2>What this is, in two sentences</h2>
+  <p>A maintenance and production tracking system for a Greenlam laminate plant. Operators report breakdowns from a phone in thirty seconds, leadership sees where the plant is losing time, and the plant's existing Excel register can be imported and exported without anyone changing how they already work.</p>
+  <div class="panel warn">
+    <p><strong>Every number you will see is synthetic.</strong> Ninety days of generated history — real structure, invented figures. Say this out loud early in the demo. If someone asks whether this is real plant data, the answer is no, and the seeding script physically refuses to write to a non-local database precisely so that stays true.</p>
+  </div>
+</section>
+
+<section>
+  <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  <p class="eyebrow">Setup · about 15 minutes</p>
+  <h2>Install what you need</h2>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>You need</th><th>Version</th><th>Check with</th></tr></thead>
+      <tbody>
+        <tr><td>Python</td><td class="mono">3.12 or newer</td><td class="mono">python3 --version</td></tr>
+        <tr><td>Node.js</td><td class="mono">20 or newer</td><td class="mono">node --version</td></tr>
+        <tr><td>PostgreSQL</td><td class="mono">16 or newer</td><td class="mono">psql --version</td></tr>
+        <tr><td>Git</td><td class="mono">any</td><td class="mono">git --version</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>On a Mac, all four in one go:</p>
+<pre><span class="c"># Homebrew — skip any you already have</span>
+brew install python@3.12 node postgresql@16 git
+brew services start postgresql@16</pre>
+
+  <p>On Ubuntu or WSL:</p>
+<pre>sudo apt update
+sudo apt install -y python3.12 python3.12-venv nodejs npm postgresql git
+sudo service postgresql start</pre>
+
+  <div class="panel">
+    <h3>There is a Docker path too — but read this first</h3>
+    <p style="margin-bottom:.6rem">If you have <strong>Docker Desktop</strong> installed and running, <code>docker compose up</code> starts the database, the API and the app together and you can skip most of the next section. Two warnings:</p>
+    <ul class="plain">
+      <li>You need Docker <em>Desktop</em>, not just the <code>docker</code> command line — the CLI alone does not include the <code>compose</code> plugin this uses.</li>
+      <li><strong>The native path below is the one verified end to end.</strong> The Docker path is written and the compose file is valid, but it was not run on the machine this was built on, so if it misbehaves fall back to the native steps rather than debugging Docker an hour before a board meeting.</li>
+    </ul>
+<pre>cp .env.example .env
+docker compose up
+<span class="c"># then, in a second terminal, once it has settled:</span>
+docker compose exec api python -m app.seed</pre>
+    <p style="margin:.8rem 0 0"><strong>On Windows</strong> use the PowerShell scripts instead of the shell ones — <code>setup.ps1</code> and <code>run.ps1</code>, run with <code>powershell -ExecutionPolicy Bypass -File .\setup.ps1</code>. They do the same checks and set the same secrets. They were written against the macOS versions but <em>not executed on a Windows machine</em>, so leave a little time the first time.</p>
+  </div>
+</section>
+
+<section>
+  <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  <p class="eyebrow">Setup · the verified path</p>
+  <h2>Five steps to a running system</h2>
+
+  <ol class="steps">
+    <li><div class="body">
+      <h3>Get the code and create the databases</h3>
+<pre>git clone &lt;the repository URL&gt; greenlam
+cd greenlam
+
+createdb greenlam
+createdb greenlam_test   <span class="c"># only needed if you want to run the tests</span></pre>
+      <p style="margin:0"><code>createdb</code> not found? Postgres is installed but not on your <code>PATH</code>. On a Mac try <code>export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"</code>.</p>
+    </div></li>
+
+    <li><div class="body">
+      <h3>Set up the API</h3>
+<pre>cd api
+python3 -m venv .venv
+.venv/bin/pip install -e ".[dev]"</pre>
+      <p style="margin:0">This pulls FastAPI, SQLModel, Alembic and the Excel reader. Takes two or three minutes the first time.</p>
+    </div></li>
+
+    <li><div class="body">
+      <h3>Set the three environment variables</h3>
+<pre>export DATABASE_URL="postgresql+psycopg://$USER@localhost:5432/greenlam"
+export JWT_SECRET="local-dev-secret-padded-out-to-32-bytes-ok"
+export PIN_PEPPER="local-dev-pepper-padded-out-to-32-bytes-ok"</pre>
+      <div class="panel stop" style="margin:.8rem 0 0">
+        <p style="margin:0"><strong><code>PIN_PEPPER</code> must be the same value when you seed and when you serve.</strong> It is mixed into every PIN hash, so if you seed with one value and start the server with another, every sign-in fails with "Employee ID or PIN is incorrect" and nothing tells you why. This is the single most common way this setup goes wrong. Use the exact strings above and keep the terminal open.</p>
+      </div>
+    </div></li>
+
+    <li><div class="body">
+      <h3>Create the tables and fill them with demo data</h3>
+<pre>.venv/bin/python -m alembic upgrade head
+.venv/bin/python -m app.seed</pre>
+      <p style="margin:0 0 .5rem">The seed prints every sign-in you can use. It creates 33 machines, 10 people, and 287 breakdowns spread across 90 days. Then start the server and <strong>leave this terminal running</strong>:</p>
+<pre>.venv/bin/uvicorn app.main:app --port 8000</pre>
+    </div></li>
+
+    <li><div class="body">
+      <h3>Start the app in a second terminal</h3>
+<pre><span class="c"># from the repository root, not from api/</span>
+npm install
+npm run dev</pre>
+      <p style="margin:0">Open <strong><code>http://localhost:5173</code></strong>. You should see a sign-in screen with a Greenlam mark, a language switch and a theme switch.</p>
+    </div></li>
+  </ol>
+
+  <div class="panel go">
+    <h3>Confirm it actually works before the meeting</h3>
+    <ul class="plain">
+      <li>Sign in as <code>EMP002</code> / <code>573014</code>. You should land on a floor screen headed "4 things need you".</li>
+      <li>Click <strong>Dashboard</strong>. You should see six numbers, a plant map, and four charts.</li>
+      <li><strong>Click a block on the plant map.</strong> A strip should appear at the top with that machine's downtime, MTBF and reject rate together.</li>
+      <li>Scroll to <strong>Machine by machine</strong> and switch to <strong>Impregnation</strong>. It should report roughly a 44% higher reject rate on out-of-spec paper.</li>
+      <li>Click the <span class="kbd">हिं</span> button top-right. The whole interface should turn Hindi within a frame.</li>
+      <li>Sign out and sign in as <code>EMP004</code> / <code>746092</code>. There should be <strong>no Dashboard tab</strong>.</li>
+    </ul>
+    <p style="margin:0">All four working means the stack is healthy. Do this the night before, not five minutes before.</p>
+  </div>
+</section>
+
+<section>
+  <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  <p class="eyebrow">Reference</p>
+  <h2>Who you can sign in as</h2>
+  <p>Two access levels, not ten roles. <strong>App</strong> is everyone on the floor — report breakdowns, log production, log paper rolls. <strong>Dashboard</strong> is a named few who also get the board, the Excel import and the master lists. Development PINs only.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Employee ID</th><th>PIN</th><th>Level</th><th>What they see</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">EMP002</td><td class="mono">573014</td><td>Dashboard</td><td><strong>Use this for most of the demo.</strong> Everything.</td></tr>
+        <tr><td class="mono">EMP001</td><td class="mono">481920</td><td>Dashboard</td><td>A second dashboard holder — the point is that it is not one person</td></tr>
+        <tr><td class="mono">EMP003</td><td class="mono">628351</td><td>Dashboard</td><td>A third</td></tr>
+        <tr><td class="mono">EMP004</td><td class="mono">746092</td><td>App</td><td>Floor only. <strong>No Dashboard tab, no Import tab.</strong></td></tr>
+        <tr><td class="mono">EMP005</td><td class="mono">819473</td><td>App</td><td>Floor only</td></tr>
+        <tr><td class="mono">EMP006</td><td class="mono">354871</td><td>App</td><td>Floor only</td></tr>
+        <tr><td class="mono">EMP007</td><td class="mono">913460</td><td>App</td><td>Floor only</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="panel">
+    <p style="margin:0">The header shows the product name and nothing else — no name, no role. Identity sits on the sign-out control, which is where somebody actually looks when the question is "is the last shift still signed in on this tablet".</p>
+  </div>
+</section>
+
+<section>
+  <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  <p class="eyebrow">The demo · twelve minutes</p>
+  <h2>What to click, and what to say</h2>
+  <p>Four acts. Sign out between them — the sign-out is part of the story, because the point of act three is that different people see different things.</p>
+  <div class="panel warn">
+    <p style="margin:0">Have <strong>two browser windows</strong> open before you start: one at normal size, one narrowed to about a phone's width. You will switch to the narrow one in act one and it looks unprepared if you resize live.</p>
+  </div>
+
+  <ol class="beats">
+    <li>
+      <div class="beat-head"><span class="clock">0:00 – 3:00</span><h3>Act one · the floor</h3><span class="who">sign in as EMP004 / 746092</span></div>
+      <p class="say"><b>Open with the problem, not the product.</b> "A press stops. Right now somebody walks to an office, finds a register, and writes a line in it. By the time anyone reads that line the press has been down a week."</p>
+      <ul class="plain" style="margin-top:.7rem">
+        <li>Point at <strong>"4 things need you"</strong> — the app opens on what is wrong, not on a menu.</li>
+        <li>Switch to the <strong>narrow window</strong>. Tap <strong>Report a breakdown</strong>. Type <code>p4</code> — Press-4 appears without picking a section first. Choose <strong>Critical</strong>, type "hydraulic pressure dropping", submit.</li>
+        <li><b>Say:</b> "Three fields. The old form had seven, and the section had to be chosen before the machine list would even load."</li>
+        <li>Turn off wifi and tap something. An offline banner appears and the work is still saved.</li>
+        <li><b>Say:</b> "Nothing on this screen waits for the network. A press hall has patchy wifi and that is a fact you design around, not a bug you file."</li>
+      </ul>
+    </li>
+
+    <li>
+      <div class="beat-head"><span class="clock">3:00 – 8:00</span><h3>Act two · the board</h3><span class="who">sign out, sign in as EMP002 / 573014, click Dashboard</span></div>
+      <ul class="plain">
+        <li>Let the headline land: <strong>"Where the plant is losing time — and where it is fine."</strong></li>
+        <li>Point at the line under the six numbers: <em>"Downtime cost needs an hourly rate per machine — not set yet, so no rupee figure is shown rather than a guessed one."</em></li>
+        <li><b>Say:</b> "That sentence is the most important thing on this screen. Every dashboard you have ever been shown had a rupee figure on it. Ask where it came from." <span style="color:var(--ink)">This is the line that wins the room.</span></li>
+        <li>Scroll to the <strong>plant map</strong>. Taller and darker blocks lost more time; the warm ones need attention now.</li>
+        <li>Scroll to <strong>"What causes the downtime"</strong>. Hover across the bars — the tooltip follows. <b>Say:</b> "Four causes are 90% of it. That is next month's maintenance agenda, and it took no analysis."</li>
+        <li><strong>Click</strong> the Mechanical bar. A strip appears at the top joining every dataset on the page for that one cause.</li>
+        <li>Scroll to <strong>"Which machines cost the most"</strong> and click <strong>Press-4</strong>. Same strip, now with its downtime, its failure count, its MTBF <em>and</em> its reject rate together.</li>
+        <li><b>Say:</b> "Those five numbers live in four different charts. Nobody was ever going to hold them in their head at once."</li>
+        <li>Scroll to <strong>Production and quality</strong> and stop on the amber box.</li>
+        <li><b>Say:</b> "This is the one that predicts instead of reports. Reject rate climbs on these machines <em>before</em> they fail. If that holds on real production, it is condition monitoring with no sensors and no capital."</li>
+      </ul>
+    </li>
+
+    <li>
+      <div class="beat-head"><span class="clock">8:00 – 10:00</span><h3>Act three · the thing that prevents a defect</h3><span class="who">sign out, sign in as EMP004 / 746092</span></div>
+      <p class="say"><b>Open by pointing at what is missing.</b> "Same app. No Dashboard tab, no Import tab. Access is not a setting someone forgot to switch on — the tabs are not there."</p>
+      <ul class="plain" style="margin-top:.7rem">
+        <li>Tap <strong>Log a paper roll</strong>.</li>
+        <li><b>Say:</b> "This is the impregnator. Paper comes in as a roll, goes through a resin bath, gets dried, gets cut. Everything the plant makes starts here."</li>
+        <li>Type roll number <code>R-DEMO-01</code>, pick <strong>IMP-1</strong>, pick grade <strong>Decor 80 GSM</strong>.</li>
+        <li>In <strong>VC — volatile content</strong>, type <strong>8.4</strong>.</li>
+        <li>Stop. Let them read the red box: <em>"VC 8.4% is above the 7% maximum for Decor 80 GSM."</em></li>
+        <li><b>Say — this is the most important sentence in the demo:</b> "Blistering shows up at the press, so the press gets blamed and re-plated. But it is mostly caused here — residual moisture flashes to vapour under the platen and lifts the layers. That number is the warning, and it is on screen while the roll is still on the floor."</li>
+        <li>Press <strong>Save roll</strong>. It saves.</li>
+        <li><b>Say:</b> "It warns. It never blocks. The moment you force somebody to choose between an honest reading and finishing their shift, they stop entering honest readings — and then the whole thing is fiction."</li>
+      </ul>
+    </li>
+
+    <li>
+      <div class="beat-head"><span class="clock">10:00 – 12:00</span><h3>Act four · proving it, and the language</h3><span class="who">sign out, sign in as EMP002 / 573014</span></div>
+      <ul class="plain">
+        <li>Dashboard → scroll to <strong>Machine by machine</strong>. One row per machine: downtime on the left, scrap on the right.</li>
+        <li><b>Say:</b> "A machine can be worst for two completely different reasons — it stops, or it makes scrap. Different fix, different owner, different budget. Nobody was ever going to hold four charts in their head to tell them apart."</li>
+        <li>Switch the toggle to <strong>Impregnation</strong>.</li>
+        <li>Read the finding aloud: <em>"Sheets from paper inside its spec window reject at 3.75%. From paper outside it, 5.41% — 44.3% higher."</em></li>
+        <li><b>Say:</b> "That is the hypothesis tested against the plant's own numbers. If it had come back the other way, the number would say so — it is reported as a comparison, not a claim."</li>
+        <li>Point at <strong>IMP-1</strong>: 26% of its rolls out of spec, against 4–5% everywhere else.</li>
+        <li>Click <span class="kbd">हिं</span>. The whole interface turns Hindi — headings, alerts, section names, chart labels.</li>
+        <li>Click <span class="kbd">HI</span> for Hinglish. <b>Say:</b> "This is how a plant floor actually talks. Many operators read Latin script faster than Devanagari even when Hindi is their first language."</li>
+        <li>Point out <strong>Press-4 stays Press-4</strong>. "Machine codes are painted on the machine. Translating them would send a technician to an asset that is not labelled that way."</li>
+        <li>If there is time: <strong>Import</strong> → drop <code>docs/sample-breakdown-register.xlsx</code> → then drop it again. It creates zero.</li>
+        <li>And: <strong>Lists</strong> → this is where the plant replaces every placeholder design, size, grade and supplier with their own. <b>Say:</b> "None of these values are Greenlam's. They are here so the forms work — the first job on day one is replacing them, and that is a screen, not a support ticket."</li>
+        <li>And the one to end on if a finance person is in the room: <strong>Setup</strong>. Both counters read <strong>0 / 33</strong>. <b>Say:</b> "Every rupee figure on the dashboard is switched off right now, because nobody has told this system what an hour of downtime costs. It will not guess."</li>
+        <li>Type <code>38000</code> and <code>16</code> into the two boxes, press each <span class="kbd">Apply to all</span>, then go back to <strong>Dashboard</strong>. The withheld line has become a total, and availability has moved off calendar hours onto the real schedule. <b>Say:</b> "Three answers from you, and the board gets numbers it can defend. Until then it gets a sentence explaining what is missing."</li>
+      </ul>
+      <p class="say" style="margin-top:.8rem"><b>Close on this:</b> "Everything else in here records what already went wrong. The impregnation screen records the thing that causes it — and tells somebody while there is still time to act."</p>
+    </li>
+  </ol>
+</section>
+
+<section>
+  <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  <p class="eyebrow">Hard questions</p>
+  <h2>What the panel will ask</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th style="width:38%">They ask</th><th>You say</th></tr></thead>
+      <tbody>
+        <tr><td>"Is this real data?"</td><td>No. Ninety days generated with realistic structure. The seeding script refuses to write to any non-local database until plant IT approves hosting in writing.</td></tr>
+        <tr><td>"What does downtime cost us?"</td><td>The system will not guess. It needs an hourly rate per machine — one costing exercise, about a day. The arithmetic is already written and switched off until then.</td></tr>
+        <tr><td>"Why not just buy MaintainX or Limble?"</td><td>They are good and they are asset-centric — they model a machine and a work order. In laminate, blistering mostly originates at impregnation, not at the press where you see it. An asset-centric tool logs that as a press defect for ever and re-plates the wrong machine.</td></tr>
+        <tr><td>"Will operators actually use it?"</td><td>Thirty seconds and three fields, in their own language, works offline. And it is measured — the system records whether a ticket was raised by scan or by typing, so adoption is a number rather than an opinion.</td></tr>
+        <tr><td>"Are you tracking individual performance?"</td><td>A person sees their own figures. Someone holding the dashboard sees the team, compared to the team average and listed alphabetically — never ranked. Two people on the floor cannot see each other's numbers at all; that is enforced in the code, not in a policy document.</td></tr>
+        <tr><td>"Who gets the dashboard?"</td><td>Whoever you name — several people, not one. Everyone else gets the app, which is the whole floor. There is no middle tier and no per-section scoping to maintain.</td></tr>
+        <tr><td>"What is RC and VC, and why should I care?"</td><td>Resin content and volatile content in the impregnated paper. High volatiles flash to vapour under the press platen and lift the layers — that is a blister. It is the one number here that predicts a defect instead of counting one, and nothing in the plant's data had it before.</td></tr>
+        <tr><td>"How do you know the paper is the cause?"</td><td>We don't assert it, we measure it. The dashboard compares reject rate on sheets pressed from in-spec paper against out-of-spec paper. On this data it is 3.75% against 5.41%. If it had come back level, the screen would say that.</td></tr>
+        <tr><td>"What happens to our Excel register?"</td><td>It keeps working. This reads it and writes it back out nightly with the same column headers, quirks included, so existing pivot tables do not break.</td></tr>
+        <tr><td>"What if the internet goes down?"</td><td>The floor app keeps working and queues everything locally. It reconciles when signal returns, and that reconciliation is tested against three devices going offline and disagreeing.</td></tr>
+        <tr><td>"How much does it cost to run?"</td><td>Free tiers today — the hosting, the database and the nightly job all fit. Compare with roughly $35–75 per user per month for a commercial platform.</td></tr>
+        <tr><td>"What is NOT built?"</td><td>Be straight about it: no rupee costs yet, availability is calendar-based and says so, machine criticality is unset, and the predictive quality signal is a hypothesis on synthetic data. All four are listed on screen, not hidden.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  <p class="eyebrow">If something breaks</p>
+  <h2>Troubleshooting</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th style="width:40%">Symptom</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>"Employee ID or PIN is incorrect" for every account</td><td>Almost always <code>PIN_PEPPER</code> differing between the seed run and the server. Set it, re-run <code>python -m app.seed --reset</code>, restart the server in the <em>same</em> terminal.</td></tr>
+        <tr><td>Sign-in page loads but nothing happens</td><td>The API is not running. Check the first terminal; visit <code>http://localhost:8000/api/health</code>.</td></tr>
+        <tr><td><code>createdb: command not found</code></td><td>Postgres is not on your <code>PATH</code>. Mac: <code>export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"</code></td></tr>
+        <tr><td><code>connection refused</code> on port 5432</td><td>Postgres is not started. <code>brew services start postgresql@16</code> or <code>sudo service postgresql start</code>.</td></tr>
+        <tr><td>Dashboard is empty</td><td>The seed did not run, or ran against a different database. Re-run <code>.venv/bin/python -m app.seed --reset</code>.</td></tr>
+        <tr><td>Charts look tiny or squashed</td><td>Hard-refresh (<span class="kbd">Cmd/Ctrl</span> + <span class="kbd">Shift</span> + <span class="kbd">R</span>). The charts measure their container on mount and a cached stylesheet can beat them to it.</td></tr>
+        <tr><td>Hindi shows as boxes</td><td>The Devanagari font did not load. Hard-refresh; if it persists, <code>npm install</code> did not complete — run it again from the repo root.</td></tr>
+        <tr><td>Port 5173 or 8000 already in use</td><td><code>lsof -ti:5173 | xargs kill -9</code> (or 8000), then start again.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel stop">
+    <h3>The one thing to do before you present</h3>
+    <p style="margin:0">Run the whole setup once, end to end, on the machine you will actually present from, the day before. Not the same machine you tested on. Not the morning of. Every failure in the table above takes two minutes to fix the night before and ends a demo if it happens in the room.</p>
+  </div>
+</section>
+
+<section>
+  <div class="laminate" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  <p class="eyebrow">If you want to go deeper</p>
+  <h2>Where things live</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Want to</th><th>Look at</th></tr></thead>
+      <tbody>
+        <tr><td>Understand the whole design</td><td class="mono">README.md</td></tr>
+        <tr><td>Show the business case</td><td class="mono">docs/master-plan.html</td></tr>
+        <tr><td>See the API and try endpoints live</td><td class="mono">http://localhost:8000/api/docs</td></tr>
+        <tr><td>Prove the tests pass, on camera</td><td class="mono">cd api &amp;&amp; .venv/bin/python -m pytest -q</td></tr>
+        <tr><td>See the spec everything was built from</td><td class="mono">docs/BUILD-PROMPT.md</td></tr>
+        <tr><td>Edit the design / size / grade lists</td><td class="mono">the <strong>Lists</strong> tab, as a dashboard user</td></tr>
+        <tr><td>Enter downtime cost, shift hours and criticality</td><td class="mono">the <strong>Setup</strong> tab, as a dashboard user</td></tr>
+        <tr><td>Install it on a phone</td><td class="mono">npm run dev -- --host, then Add to Home Screen</td></tr>
+        <tr><td>Prove the front end is type-clean</td><td class="mono">npm run typecheck</td></tr>
+        <tr><td>Generate the leadership workbook</td><td class="mono">cd export &amp;&amp; python build_workbook.py</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Running the tests live is worth doing if the panel is technical. It takes about a minute and prints <code>129 passed</code>, which is a more convincing answer to "is this production quality" than any slide.</p>
+</section>
+
+<footer>
+  <p style="max-width:var(--measure)">Setup verified on macOS with Python 3.13, Node 24, PostgreSQL 17. The Docker path is provided but was not executed on the build machine. All demo data is synthetic.</p>
+</footer>
+
+</div>

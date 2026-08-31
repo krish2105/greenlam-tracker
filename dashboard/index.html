@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Never disable zoom: an operator squinting at a cracked screen in a
+         bright hall needs to be able to pinch. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Greenlam maintenance and production tracker" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#F7F6F2" />
+    <!-- iOS ignores the web manifest for the home-screen icon and title, so
+         these three are not redundant with it. Without them an installed app
+         on an iPhone gets a screenshot of the page as its icon. -->
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Greenlam" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Greenlam Tracker</title>
+
+    <!--
+      Theme bootstrap. Runs before first paint so nobody sees a white flash
+      before the dark theme applies — on a phone at 2am that flash is genuinely
+      unpleasant, and it is the one thing a CSS-only solution cannot fix.
+
+      Three security properties, all deliberate:
+
+      1. The stored value is NEVER written to the DOM. It is compared against
+         two string literals and only 'dark' or 'light' — constants from this
+         file — are ever assigned. localStorage is writable by any script on
+         the origin, so its contents are untrusted input.
+      2. No 'unsafe-inline' needed. This exact script is allowlisted in the CSP
+         by its SHA-256 hash (see render.yaml). Editing even one byte in here
+         means re-running `npm run csp:hash`, which is the point: the CSP tracks
+         the script rather than blessing all inline script.
+      3. Wrapped in try/catch. Safari in private mode throws on localStorage,
+         and a theme preference is never worth a blank page.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('gmt.theme');
+          var pref = stored === 'light' || stored === 'dark' ? stored : 'system';
+          var dark =
+            pref === 'dark' ||
+            (pref === 'system' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var root = document.documentElement;
+          root.setAttribute('data-theme', dark ? 'dark' : 'light');
+          root.style.colorScheme = dark ? 'dark' : 'light';
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', dark ? '#131611' : '#F7F6F2');
+        } catch (e) {
+          /* no storage, no preference — the light default in <html> stands */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      This tracker needs JavaScript. Ask your supervisor if it is switched off
+      on this device.
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

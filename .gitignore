@@ -1,0 +1,43 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Plant data. The synthetic-data rule (PHASE-0-ACTION-PACK §2 rule 5) says real
+# machine names, downtime figures and employee names stay off any external
+# service until hosting is approved in writing. Keeping them out of git is part
+# of that — a pushed repo is an external service.
+data/real/
+*.xlsx
+!docs/**/*.xlsx
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# Distribution archives. These are built artifacts of the repo itself; a repo
+# that contains zips of itself grows a copy every time one is made.
+*.zip
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp

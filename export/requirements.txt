@@ -1,0 +1,4 @@
+# Export tooling only. Deliberately NOT in api/pyproject.toml — Render's image
+# should not carry openpyxl, and the workbook never builds there (addendum §0).
+openpyxl>=3.1.5
+psycopg[binary]>=3.2.3

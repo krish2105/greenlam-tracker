@@ -1,0 +1,473 @@
+/**
+ * Log a shift's output.
+ *
+ * Same discipline as raising a breakdown: the shortest path that still
+ * produces analysable data. Machine, produced, rejected — and the reject
+ * reason appears only when there is something to explain, so a clean shift is
+ * four taps.
+ *
+ * The reason field is required the moment `rejected > 0`, in the UI, in the
+ * API, and in a database CHECK. Three layers because a Pareto with an
+ * "Unrecorded" bar taller than every named cause is worse than no Pareto: it
+ * looks like information.
+ */
+
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { localName, sectionColour } from '@greenlam/core';
+
+import * as api from '../../lib/api';
+import { Sheet } from '../Sheet';
+
+
+export function LogProductionSheet({
+  onClose,
+  onLogged,
+}: {
+  onClose: () => void;
+  onLogged: () => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const [machines, setMachines] = useState<api.Machine[]>([]);
+  const [sections, setSections] = useState<api.Section[]>([]);
+  const [shifts, setShifts] = useState<api.Shift[]>([]);
+  const [reasons, setReasons] = useState<api.RejectReason[]>([]);
+
+  const [query, setQuery] = useState('');
+  const [machineId, setMachineId] = useState<number | null>(null);
+  const [shiftId, setShiftId] = useState<number | null>(null);
+  // The legacy free-text pair. Still sent so existing rows and the Excel
+  // import keep round-tripping, but derived from the master selection rather
+  // than typed — the *_id columns are what the analysis groups by.
+  const [size] = useState('8x4 ft');
+  const [texture] = useState<string>('Glossy');
+  const [designs, setDesigns] = useState<api.Vocab[]>([]);
+  const [sizes, setSizes] = useState<api.Vocab[]>([]);
+  const [textures, setTextures] = useState<api.Vocab[]>([]);
+  const [thicknesses, setThicknesses] = useState<api.Vocab[]>([]);
+  const [rolls, setRolls] = useState<string[]>([]);
+  const [designId, setDesignId] = useState<number | null>(null);
+  const [sizeId, setSizeId] = useState<number | null>(null);
+  const [textureId, setTextureId] = useState<number | null>(null);
+  const [thicknessId, setThicknessId] = useState<number | null>(null);
+  const [rollNo, setRollNo] = useState('');
+  const [produced, setProduced] = useState('');
+  const [rejected, setRejected] = useState('0');
+  const [reasonId, setReasonId] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    void Promise.all([
+      api.listMachines(),
+      api.listSections(),
+      api.listShifts().catch(() => []),
+      api.listRejectReasons().catch(() => []),
+      api.listDesigns().catch(() => []),
+      api.listSizes().catch(() => []),
+      api.listTextures().catch(() => []),
+      api.listThicknesses().catch(() => []),
+      api.recentRollNumbers().catch(() => []),
+    ]).then(([m, s, sh, r, d, sz, tx, th, rl]) => {
+      setMachines(m);
+      setSections(s);
+      setShifts(sh);
+      setReasons(r);
+      setDesigns(d);
+      setSizes(sz);
+      setTextures(tx);
+      setThicknesses(th);
+      setRolls(rl);
+      if (sh.length) setShiftId(sh[0]!.id);
+      // Preselect the commonest values so the fast path stays fast. A form
+      // that opens with four empty dropdowns is four more taps per entry, and
+      // production is logged every shift on every machine.
+      if (sz.length) setSizeId(sz[0]!.id);
+      if (tx.length) setTextureId(tx[0]!.id);
+      if (th.length) setThicknessId(th[0]!.id);
+    });
+  }, []);
+
+  /** A master-list dropdown, localised. Four of these on this form. */
+  const VocabField = ({
+    id,
+    label,
+    value,
+    onChange,
+    options,
+  }: {
+    id: string;
+    label: string;
+    value: number | null;
+    onChange: (v: number | null) => void;
+    options: api.Vocab[];
+  }) => (
+    <div>
+      <label
+        htmlFor={id}
+        className="mb-1 block font-medium"
+        style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)' }}
+      >
+        {label}
+      </label>
+      <select
+        id={id}
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
+        className="arch w-full border px-3 py-3"
+        style={field}
+      >
+        <option value="">—</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>
+            {localName(o, i18n.language)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  const sectionById = useMemo(() => new Map(sections.map((s) => [s.id, s])), [sections]);
+
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase().replace(/[\s-]/g, '');
+    if (!q) return machines.slice(0, 6);
+    return machines
+      .filter((m) => m.code.toLowerCase().replace(/[\s-]/g, '').includes(q))
+      .slice(0, 6);
+  }, [machines, query]);
+
+  const selected = machines.find((m) => m.id === machineId) ?? null;
+  const rejectedCount = Number(rejected) || 0;
+  const producedCount = Number(produced) || 0;
+
+  async function submit() {
+    if (machineId === null) return setError(t('production.errors.needMachine'));
+    if (!producedCount) return setError(t('production.errors.needQty'));
+    if (rejectedCount > producedCount) return setError(t('production.errors.tooManyRejects'));
+    if (rejectedCount > 0 && reasonId === null) return setError(t('production.errors.needReason'));
+
+    setBusy(true);
+    setError('');
+    try {
+      await api.logProduction({
+        machine_id: machineId,
+        shift_id: shiftId,
+        size: size.trim(),
+        texture,
+        design_id: designId,
+        size_id: sizeId,
+        texture_id: textureId,
+        thickness_id: thicknessId,
+        roll_no: rollNo.trim() || null,
+        produced_qty: producedCount,
+        rejected_qty: rejectedCount,
+        reject_reason_id: rejectedCount > 0 ? reasonId : null,
+      });
+      onLogged();
+    } catch {
+      setError(t('production.errors.failed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const field = {
+    borderColor: 'var(--line-strong)',
+    background: 'var(--surface)',
+    color: 'var(--ink)',
+  };
+
+  return (
+    <Sheet title={t('production.logTitle')} onClose={onClose}>
+      <div className="space-y-5">
+        <div>
+          <label
+            htmlFor="prod-machine"
+            className="mb-1 block font-medium"
+            style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)' }}
+          >
+            {t('production.machine')}
+          </label>
+          {selected ? (
+            <div
+              className="arch flex items-center justify-between border px-3 py-3"
+              style={{ borderColor: 'var(--accent)', background: 'var(--accent-quiet)' }}
+            >
+              <span className="font-semibold" style={{ color: 'var(--ink)' }}>
+                {selected.code}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setMachineId(null);
+                  setQuery('');
+                }}
+                className="px-2 py-1"
+                style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-muted)' }}
+              >
+                {t('raise.change')}
+              </button>
+            </div>
+          ) : (
+            <>
+              <input
+                id="prod-machine"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t('raise.machinePlaceholder')}
+                autoComplete="off"
+                autoCapitalize="characters"
+                className="arch w-full border px-3 py-3"
+                style={field}
+              />
+              <ul className="mt-2 grid grid-cols-2 gap-2">
+                {matches.map((m) => {
+                  const section = sectionById.get(m.section_id);
+                  return (
+                    <li key={m.id}>
+                      <button
+                        type="button"
+                        onClick={() => setMachineId(m.id)}
+                        className="feather arch w-full border py-3 pr-2 pl-2.5 text-left"
+                        style={
+                          {
+                            borderColor: 'var(--line)',
+                            background: 'var(--surface)',
+                            '--feather': sectionColour(section?.sort_order, section?.name ?? ''),
+                          } as React.CSSProperties
+                        }
+                      >
+                        <span className="block font-semibold" style={{ color: 'var(--ink)' }}>
+                          {m.code}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </div>
+
+        {shifts.length > 0 && (
+          <fieldset>
+            <legend
+              className="mb-1 font-medium"
+              style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)' }}
+            >
+              {t('production.shift')}
+            </legend>
+            <div className="grid grid-cols-3 gap-2">
+              {shifts.map((s) => (
+                <Chip
+                  key={s.id}
+                  active={s.id === shiftId}
+                  onClick={() => setShiftId(s.id)}
+                  label={s.name}
+                />
+              ))}
+            </div>
+          </fieldset>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField
+            id="produced"
+            label={t('production.produced')}
+            value={produced}
+            onChange={setProduced}
+          />
+          <NumberField
+            id="rejected"
+            label={t('production.rejected')}
+            value={rejected}
+            onChange={setRejected}
+          />
+        </div>
+
+        {/* Appears only when there is something to explain. A clean shift never
+            sees this field. */}
+        {rejectedCount > 0 && (
+          <fieldset>
+            <legend
+              className="mb-1 font-medium"
+              style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)' }}
+            >
+              {t('production.rejectReason')}
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {reasons.map((r) => (
+                <Chip
+                  key={r.id}
+                  active={r.id === reasonId}
+                  onClick={() => setReasonId(r.id)}
+                  label={r.name}
+                />
+              ))}
+            </div>
+          </fieldset>
+        )}
+
+        {/* Design, size, texture and thickness all come from master lists now.
+            They used to be free text and a hardcoded array, which is how one
+            texture ended up spelled three ways and split itself across three
+            rows of every reject breakdown. */}
+        <div className="grid grid-cols-2 gap-3">
+          <VocabField
+            id="design"
+            label={t('production.design')}
+            value={designId}
+            onChange={setDesignId}
+            options={designs}
+          />
+          <VocabField
+            id="size"
+            label={t('production.size')}
+            value={sizeId}
+            onChange={setSizeId}
+            options={sizes}
+          />
+          <VocabField
+            id="texture"
+            label={t('production.texture')}
+            value={textureId}
+            onChange={setTextureId}
+            options={textures}
+          />
+          <VocabField
+            id="thickness"
+            label={t('production.thickness')}
+            value={thicknessId}
+            onChange={setThicknessId}
+            options={thicknesses}
+          />
+        </div>
+
+        {/* The traceability link. Optional on purpose — the habit of labelling
+            rolls has to exist on the floor before this can be required, and a
+            mandatory field nobody can answer is a field people learn to fake.
+            Newest first, because the operator wants today's roll. */}
+        <div>
+          <label
+            htmlFor="roll"
+            className="mb-1 block font-medium"
+            style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)' }}
+          >
+            {t('production.fromRoll')}
+          </label>
+          <input
+            id="roll"
+            list="recent-rolls"
+            value={rollNo}
+            onChange={(e) => setRollNo(e.target.value)}
+            placeholder={t('production.fromRollPlaceholder')}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            className="arch w-full border px-3 py-3"
+            style={field}
+          />
+          <datalist id="recent-rolls">
+            {rolls.map((r) => (
+              <option key={r} value={r} />
+            ))}
+          </datalist>
+          <p className="mt-1" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>
+            {t('production.fromRollHint')}
+          </p>
+        </div>
+
+        {error && (
+          <p
+            role="alert"
+            className="arch px-3 py-2"
+            style={{
+              background: 'var(--rust-tint)',
+              color: 'var(--rust)',
+              fontSize: 'var(--text-sm)',
+            }}
+          >
+            {error}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={() => void submit()}
+          disabled={busy}
+          className="arch w-full py-4 font-semibold disabled:opacity-60"
+          style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
+        >
+          {busy ? t('production.submitting') : t('production.submit')}
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
+function Chip({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className="arch border px-3 py-2.5 font-medium"
+      style={{
+        fontSize: 'var(--text-sm)',
+        borderColor: active ? 'var(--accent)' : 'var(--line)',
+        background: active ? 'var(--accent-quiet)' : 'var(--surface)',
+        color: active ? 'var(--ink)' : 'var(--ink-muted)',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function NumberField({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <label
+        htmlFor={id}
+        className="mb-1 block font-medium"
+        style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)' }}
+      >
+        {label}
+      </label>
+      <input
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
+        // inputMode rather than type="number": the numeric keypad without the
+        // spinners, the stray minus sign, or the scroll-wheel accidents.
+        inputMode="numeric"
+        className="tabular arch w-full border px-3 py-3"
+        style={{
+          borderColor: 'var(--line-strong)',
+          background: 'var(--surface)',
+          color: 'var(--ink)',
+        }}
+      />
+    </div>
+  );
+}

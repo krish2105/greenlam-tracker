@@ -1,0 +1,99 @@
+# Render blueprint.
+#
+# The static site rewrites /api/* to the API service, so the browser sees ONE
+# origin. That is what lets the refresh token live in a first-party httpOnly
+# cookie — cross-site cookies are effectively dead on iOS Safari, and a good
+# share of the floor is on iPhone.
+#
+# The database is NOT here. Render's free Postgres is deleted after 30 days,
+# which would wipe the pilot exactly when leadership reviews it (spec §0).
+# Provision Neon separately and paste its connection string into DATABASE_URL.
+#
+# Excel generation is NOT here either. It runs on the GitHub Actions runner
+# against Neon directly, via a read-only export_reader role (addendum §0).
+# Render stays asleep for it.
+
+services:
+  - type: web
+    name: greenlam-tracker-api
+    runtime: docker
+    plan: free
+    region: singapore # closest to India; confirm data-residency policy first
+    rootDir: api
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: false # deploy deliberately during a pilot, not on every push
+    envVars:
+      - key: ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        sync: false # paste the Neon connection string in the dashboard
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PIN_PEPPER
+        generateValue: true # rotating this invalidates every PIN — see README
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: BASE_URL
+        fromService:
+          type: web
+          name: greenlam-tracker-web
+          property: url
+      - key: ALLOW_REMOTE_SEED
+        value: "false" # the seed refuses to run here until this is flipped
+
+  - type: web
+    name: greenlam-tracker-web
+    runtime: static
+    plan: free
+    rootDir: .
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dashboard/dist
+    autoDeploy: false
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+    routes:
+      # Same-origin API. Must come before the SPA catch-all.
+      - type: rewrite
+        source: /api/*
+        destination: https://greenlam-tracker-api.onrender.com/api/*
+      # SPA fallback: every other path serves index.html so client routing works.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        # The sha256 is the theme bootstrap script inlined in index.html. It
+        # has to run before first paint to avoid a flash of the wrong theme,
+        # and hashing it means we never need 'unsafe-inline'.
+        # Regenerate after editing that script: npm run csp:hash
+        value: >-
+          default-src 'self';
+          script-src 'self' 'sha256-5razn2Jzw0fWybM3HPB6XWL8YOLU7RZ4AIMLP+K9ygA=';
+          style-src 'self' 'unsafe-inline';
+          img-src 'self' data: blob:;
+          font-src 'self';
+          connect-src 'self';
+          media-src 'self' blob:;
+          object-src 'none';
+          base-uri 'none';
+          form-action 'self';
+          frame-ancestors 'none';
+          upgrade-insecure-requests
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: same-origin
+      - path: /*
+        name: Permissions-Policy
+        # Camera stays allowed: Phase 3 scans QR labels from this origin.
+        value: camera=(self), microphone=(self), geolocation=(), payment=()
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains

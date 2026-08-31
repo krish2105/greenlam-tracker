@@ -1,0 +1,71 @@
+name: Nightly export
+
+# 00:15 IST. GitHub cron is UTC, so 18:45 the previous day.
+on:
+  schedule:
+    - cron: '45 18 * * *'
+  workflow_dispatch: # the dashboard's "Export now" button calls this
+
+# One code path for scheduled and manual runs. If the two ever differ, they
+# will drift and the manual button will stop matching what leadership receives.
+jobs:
+  export:
+    name: Build the master workbook
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install
+        run: pip install -r export/requirements.txt
+
+      - name: Build
+        env:
+          # Read-only role. The runner must never be able to write.
+          EXPORT_DATABASE_URL: ${{ secrets.EXPORT_DATABASE_URL }}
+        run: python -m export.build_workbook --out ./dist/exports
+
+      - name: Check it is not empty
+        run: |
+          # A silently-empty workbook is the failure mode that matters: people
+          # keep opening it and acting on stale data.
+          count=$(find ./dist/exports -name '*.xlsx' | wc -l)
+          if [ "$count" -lt 2 ]; then
+            echo "Expected a dated file and a LATEST file, found $count"
+            exit 1
+          fi
+          find ./dist/exports -name '*.xlsx' -size -8k -print -exec false {} +
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: greenlam-export
+          path: dist/exports/
+          retention-days: 90
+
+      # Render is deliberately absent from this job. Object storage and email
+      # land here once Phase 0 answers where plant data may live.
+
+  # If anything above fails the workflow fails, GitHub emails the owner, and
+  # this step puts it where the maintenance team actually looks.
+  alert:
+    needs: export
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify the maintenance group
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TELEGRAM_TOKEN" ]; then
+            echo "No Telegram secret configured — GitHub's own failure email is the only alert."
+            exit 0
+          fi
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" \
+            -d chat_id="$TELEGRAM_CHAT_ID" \
+            -d text="Greenlam nightly export FAILED for $(date -u +%F). Leadership will not receive today's workbook."

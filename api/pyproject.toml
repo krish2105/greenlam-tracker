@@ -1,0 +1,43 @@
+[project]
+name = "greenlam-tracker-api"
+version = "0.1.0"
+description = "Greenlam Maintenance & Production Intelligence System — API"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "sqlmodel>=0.0.22",
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14.0",
+    "psycopg[binary]>=3.2.3",
+    "pydantic-settings>=2.6.0",
+    "argon2-cffi>=23.1.0",
+    "pyjwt>=2.10.0",
+    "uuid-utils>=0.10.0",
+    # Reading the plant's Excel register. The export job already depends on it;
+    # the API needs it too now that uploads land here.
+    "openpyxl>=3.1.5",
+    # FastAPI needs this for multipart/form-data — i.e. any file upload.
+    "python-multipart>=0.0.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "httpx>=0.28.0",
+    "ruff>=0.8.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

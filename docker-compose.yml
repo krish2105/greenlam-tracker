@@ -1,0 +1,72 @@
+# Local stack: Postgres + API + PWA, one command.
+#
+# This file exists from day one because the hosting question (spec §12.1 Q12)
+# is still open. If plant IT mandates on-prem, deployment becomes
+# `docker compose up` on their VM instead of a Render deploy — same code, same
+# images. Hosting stays a deployment choice rather than an architecture change.
+#
+#   docker compose up
+#   → PWA      http://localhost:5173   (proxies /api to the API — same origin)
+#   → API docs http://localhost:5173/api/docs
+#   → Postgres localhost:5432
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: greenlam
+      POSTGRES_PASSWORD: greenlam
+      POSTGRES_DB: greenlam
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init-test-db.sh:/docker-entrypoint-initdb.d/init-test-db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U greenlam -d greenlam"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENV: local
+      DEBUG: "true"
+      DATABASE_URL: postgresql+psycopg://greenlam:greenlam@db:5432/greenlam
+      # Local-only values. Production reads these from Render's secret store.
+      JWT_SECRET: local-dev-secret-not-for-production
+      PIN_PEPPER: local-dev-pepper-not-for-production
+      COOKIE_SECURE: "false"   # no HTTPS on localhost
+      BASE_URL: http://localhost:5173
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app
+    # Migrate, then serve. Idempotent, so restarting is safe.
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  web:
+    image: node:22-alpine
+    working_dir: /repo
+    depends_on:
+      - api
+    environment:
+      # Vite proxies /api to the API container, so the browser sees one origin
+      # and the httpOnly refresh cookie is first-party.
+      VITE_API_PROXY_TARGET: http://api:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./:/repo
+      - node_modules:/repo/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+
+volumes:
+  pgdata:
+  node_modules:

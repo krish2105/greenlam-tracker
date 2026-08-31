@@ -1,0 +1,686 @@
+@import 'tailwindcss';
+
+/* Self-hosted, not Google Fonts. An offline-first PWA that needs the network
+   for its typeface is not offline-first — and the service worker in Phase 3
+   can only precache what ships in the bundle. */
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+/* Devanagari, subset to the Devanagari block only — the package also ships
+   Latin and Cyrillic cuts we already have, and shipping them again would add
+   weight for glyphs that never render. Without this the Hindi interface falls
+   back to whatever the device happens to have, which on the cheap Androids
+   this is built for means inconsistent matra placement and, on some ROMs, no
+   Devanagari at all. A translated app that renders as boxes is worse than an
+   untranslated one. */
+@import '@fontsource/ibm-plex-sans-devanagari/devanagari-400.css';
+@import '@fontsource/ibm-plex-sans-devanagari/devanagari-500.css';
+@import '@fontsource/ibm-plex-sans-devanagari/devanagari-600.css';
+/* Display face for the board's editorial headlines only. Loaded on the board
+   route, which is lazy — the floor bundle never pays for it. */
+@import '@fontsource/space-grotesk/500.css';
+@import '@fontsource/space-grotesk/600.css';
+
+/* ==========================================================================
+   TYPE
+   IBM Plex, chosen for the brief rather than by default. It was drawn for an
+   engineering company, it holds up at small sizes on cheap LCD panels, it has
+   real tabular figures for the metrics columns, and — the deciding factor —
+   IBM Plex Sans Devanagari is a metrics-matched member of the same superfamily.
+   That solves Phase 7's Hindi rendering with one font stack instead of pairing
+   two unrelated faces.
+
+   Note a deliberate deviation from addendum §2.5, which suggests Noto Sans
+   Devanagari. The principle there — self-host the subset, do not trust device
+   fonts — is what matters, and Plex satisfies it while also matching the Latin
+   text it sits beside. Swap the @import if you would rather follow Noto.
+   ========================================================================== */
+
+@theme {
+  --font-sans:
+    'IBM Plex Sans', 'IBM Plex Sans Devanagari', ui-sans-serif, system-ui,
+    sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-display: 'Space Grotesk', 'IBM Plex Sans', ui-sans-serif, sans-serif;
+
+  /* Fluid scale. clamp() interpolates instead of jumping at breakpoints, so a
+     360px phone and a wall-mounted dashboard both read correctly. */
+  --text-xs: clamp(0.75rem, 0.72rem + 0.15vw, 0.8125rem);
+  --text-sm: clamp(0.875rem, 0.85rem + 0.15vw, 0.9375rem);
+  --text-base: clamp(1rem, 0.96rem + 0.2vw, 1.0625rem);
+  --text-lg: clamp(1.125rem, 1.07rem + 0.28vw, 1.25rem);
+  --text-xl: clamp(1.375rem, 1.28rem + 0.45vw, 1.625rem);
+  --text-2xl: clamp(1.75rem, 1.6rem + 0.75vw, 2.25rem);
+}
+
+/* ==========================================================================
+   COLOUR
+   Two palettes designed together, not one inverted. Every foreground/background
+   pair below meets WCAG AA (4.5:1) — including the muted text, which in the
+   original prototype sat at 3.2:1 and failed.
+
+   Greenlam's identity is deep forest green with a spectrum-fan peacock. The
+   green is the single structural colour; the status ramp (green → amber → rust)
+   carries the only echo of the spectrum. One restrained reference reads as
+   intentional. Seven colours read as clip-art.
+   ========================================================================== */
+
+/* The mark itself: a lime arch, a spectrum peacock, a forest wordmark.
+   Lime is the loudest thing in it and therefore the action colour — it is what
+   makes this recognisably Greenlam rather than another green dashboard. Every
+   pairing below was checked with scripts/contrast (see README). */
+:root {
+  --brand-lime: #a6ce39; /* 8.5:1 as a fill under dark ink */
+  --brand-forest: #1f5f3f; /* 7.0:1 on paper */
+
+  /* Peacock tail, left to right. Section IDENTITY — never text, and never a
+     measurement. */
+}
+
+/* The feathers are theme-adjusted, and this is not decoration.
+   WCAG 1.4.11 asks 3:1 of any graphical object that carries meaning, and a
+   filled bar whose length is the measurement is exactly that. Raw brand yellow
+   is 1.12:1 on paper — the Sanding bar was effectively invisible in light mode.
+   Each hue is darkened for paper or lightened for night only as far as 3:1
+   requires, so the section keeps a recognisable identity in both themes. */
+:root,
+[data-theme='light'] {
+  --feather-1: #e5007e; /* magenta  4.19:1 */
+  --feather-2: #c27400; /* orange   3.35:1 (brand 2.18) */
+  --feather-3: #988e00; /* yellow   3.13:1 (brand 1.12) */
+  --feather-4: #009640; /* green    3.57:1 */
+  --feather-5: #0098d7; /* cyan     3.00:1 (brand 2.72) */
+  --feather-6: #164194; /* blue     8.76:1 */
+  --feather-7: #8b1f8f; /* purple   7.22:1 */
+  --feather-8: #749027; /* lime     3.37:1 (brand 1.69) */
+}
+
+[data-theme='dark'] {
+  --feather-1: #e5007e; /* 4.24:1 */
+  --feather-2: #f39200; /* 8.17:1 */
+  --feather-3: #ffed00; /* 15.91:1 */
+  --feather-4: #009640; /* 4.98:1 */
+  --feather-5: #00a0e3; /* 6.54:1 */
+  --feather-6: #4467a9; /* 3.44:1 (brand 1.93 — too dark for night) */
+  --feather-7: #9c409f; /* 3.34:1 (brand 2.34) */
+  --feather-8: #a6ce39; /* 10.54:1 */
+}
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  --canvas: #f7f6f2; /* paper. photographs and projects well in a lit office */
+  --surface: #ffffff;
+  --surface-muted: #edebe2;
+  --line: #e1ded3;
+  --line-strong: #cdc9bb;
+
+  --ink: #22251f; /* 14.4:1 on canvas */
+  --ink-muted: #5f6458; /*  5.4:1 — the prototype's #8B8A7F was 3.2:1 */
+
+  --primary: #1f5f3f; /*  7.0:1 on canvas */
+  --primary-ink: #ffffff;
+  --primary-tint: #e7eee8;
+
+  /* Lime is too bright to carry text on paper (1.7:1), so in the light theme
+     it is a fill with dark ink on it and a rule — never a text colour. */
+  --accent: #a6ce39;
+  --accent-ink: #22251f;
+  --accent-quiet: #eef4dc;
+
+  --amber: #96581f; /*  5.1:1 */
+  --amber-tint: #f4ead9;
+  --rust: #9a3e2e; /*  6.3:1 */
+  --rust-tint: #f5e3df;
+  --info: #2e5a78;
+  --info-tint: #e7eef3;
+
+  --surface-raised: #ffffff; /* sheets and menus */
+  --focus: #1f5f3f;
+  --shadow: 0 1px 2px rgb(34 37 31 / 0.06), 0 1px 3px rgb(34 37 31 / 0.04);
+  /* No edge highlight in light mode — the shadow already does that work. */
+  --edge-light: transparent;
+
+  /* --- DATA VISUALISATION ------------------------------------------------
+     A separate palette from the brand, and that separation is the point.
+
+     The first version painted data marks in Greenlam's own colours: forest
+     bars, a lime cumulative line, peacock-feather machine bars. It read as
+     childish, and the diagnosis is specific — brand colours are chosen to be
+     LOUD and MEMORABLE, which is the opposite of what a data mark needs.
+     Magenta stretched across a 400px bar is not identity, it is shouting. The
+     feathers stay where they were designed to work: a 4px rule down the edge
+     of a card (`.feather`), never a fill.
+
+     Three roles, kept apart:
+       --viz-1..5   categorical. Only for genuinely separate series.
+       --seq-1..5   sequential. For RANKED things, where darkness is the rank.
+       --clay-1..5  sequential, warm. Same, for quality loss — rejects, scrap.
+
+     Every value below is measured, not eyeballed. All clear 3:1 against both
+     canvas and surface (WCAG 1.4.11, graphical objects).
+
+     The categorical five are also a deliberate LUMINANCE staircase: 9.1, 6.2,
+     4.6, 3.6, 3.1. Five hues that are all dark enough for paper cannot stay
+     separable under deuteranopia — that is a fact about the eye, not a palette
+     you can search your way out of. So hue is not the channel that carries the
+     distinction; lightness is (min greyscale gap 0.049), and the bands are
+     labelled directly on the chart. Colour is the third cue, not the only one.
+     -------------------------------------------------------------------- */
+  --viz-1: #124d38; /* forest  9.06:1 */
+  --viz-2: #9a3f31; /* clay    6.21:1 */
+  --viz-3: #7d62ab; /* violet  4.62:1 */
+  --viz-4: #af7511; /* ochre   3.61:1 */
+  --viz-5: #4295c8; /* steel   3.05:1 */
+
+  --seq-1: #0e422f; /* 10.56:1 */
+  --seq-2: #125a40; /*  7.58:1 */
+  --seq-3: #177351; /*  5.38:1 */
+  --seq-4: #1c8a61; /*  4.00:1 */
+  --seq-5: #21a072; /*  3.06:1 */
+
+  --clay-1: #6c2e1e; /* 9.49:1 */
+  --clay-2: #8c3b27; /* 7.01:1 */
+  --clay-3: #af4b31; /* 5.01:1 */
+  --clay-4: #c95c41; /* 3.81:1 */
+  --clay-5: #d2755e; /* 3.01:1 */
+
+  /* The Pareto tail — present, readable, and clearly not the recommendation. */
+  --viz-muted: #8e8975; /* 3.24:1 */
+  /* Cumulative lines and reference rules. Ink, not highlighter: a Pareto
+     curve is an annotation on the bars, so it must not out-shout them. */
+  --viz-ref: #3a4139; /* 9.73:1 */
+  --viz-track: #e8e5da; /* the groove a bar sits in — not a data mark */
+  --viz-tooltip: #22251f;
+  --viz-tooltip-ink: #f7f6f2;
+
+  /* Pointer spotlight on a tilting card. Transparent on paper — a white card
+     should be white, and a lit surface in a bright room shows no highlight.
+     See `--spotlight` in the dark block for the reasoning. */
+  --spotlight: transparent;
+}
+
+/* ==========================================================================
+   DARK
+   Rebuilt. The first attempt had two faults, both measurable:
+
+   1. NO SEPARATION. Surface sat 1.09:1 above canvas, so cards did not read as
+      cards — the whole screen was one flat sheet with text floating on it.
+      Now 1.19:1, plus a hairline top highlight (`.lift`) so an edge catches
+      light the way a real panel does. Depth in dark UI comes from a step in
+      lightness AND a defined edge; one without the other looks like fog.
+
+   2. AN OLIVE CAST. The old canvas was rgb(19,22,17) — blue lowest, green
+      highest — which is literally the recipe for swamp. Every neutral in the
+      interface inherited it. The new canvas is rgb(13,15,14): near-neutral,
+      with only enough green to relate to the brand.
+
+   The rule this follows: tint the ACCENTS, not the NEUTRALS. Greenlam's colour
+   belongs on the button, not smeared across every background.
+   ========================================================================== */
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Not pure black — pure black smears on cheap OLED panels and makes the
+     lime look radioactive. This is a press hall at night.
+
+     NEUTRALISED. These were green-biased: surface was rgb(28,34,30), muted
+     rgb(38,45,40), line-strong rgb(71,82,74) — green highest in every one, by
+     4 to 8 points. Invisible on a hairline, and unmistakably OLIVE the moment
+     one of them fills a large card. The handover block on the floor screen is
+     `--surface-muted` across the full column width, which is exactly where it
+     showed.
+
+     This file already stated the rule two blocks up — "tint the ACCENTS, not
+     the NEUTRALS" — and then tinted the neutrals anyway. The canvas got fixed
+     in the last dark-mode pass and the other six did not.
+
+     Now a whisper of BLUE instead (b two or three points above r), which reads
+     as cool industrial grey rather than swamp. Every value sits at the same
+     luminance as the colour it replaces — measured, ΔL < 0.003 — so every
+     contrast ratio verified against the old palette still holds:
+     ink 16.4:1, ink-muted 8.2:1, surface/canvas separation 1.19:1. */
+  --canvas: #0e0f11;
+  --surface: #202123;
+  --surface-muted: #2a2b2d;
+  --surface-raised: #353638; /* sheets and menus, one step above a card */
+  --line: #38393b;
+  --line-strong: #4e4f51;
+
+  --ink: #ecedee; /* 16.4:1 on canvas */
+  --ink-muted: #a8a9aa; /*  8.2:1 */
+
+  /* #1F5F3F is unreadable on a dark ground, so the brand green moves up the
+     ramp rather than being reused. Same hue family, legible. */
+  --primary: #7fd3a0; /* 10.7:1 */
+  --primary-ink: #0d0f0e;
+  --primary-tint: #16281d;
+
+  /* Lime lifted slightly for the darker ground: 12.2:1. Dark mode is where the
+     brand colour does the most work, because it is the only saturated thing
+     on screen. */
+  --accent: #b5dc45;
+  --accent-ink: #0d0f0e;
+  --accent-quiet: #1f2a12;
+
+  --amber: #e8ae6b; /*  9.8:1 */
+  --amber-tint: #2e2416;
+  --rust: #f0908a; /*  8.3:1 */
+  --rust-tint: #321c1b;
+  --info: #9cc4de; /* 10.4:1 */
+  --info-tint: #18242c;
+
+  --focus: #b5dc45;
+  /* Deeper than light mode: a soft shadow is invisible against a dark ground,
+     so the separation has to come from a hard one. */
+  --shadow:
+    0 1px 2px rgb(0 0 0 / 0.6), 0 4px 12px rgb(0 0 0 / 0.35);
+  --edge-light: rgb(255 255 255 / 0.06);
+
+  /* Data viz, night. Not the light values lightened — re-derived, because a
+     ramp that steps DOWN in lightness on paper has to step UP here or the
+     rank ordering silently inverts. Same measured discipline: every mark
+     ≥3:1 on both canvas and surface, categorical staircase gap 0.066. */
+  --viz-1: #6ad7af; /* forest 10.95:1 */
+  --viz-2: #e39a8e; /* clay    8.50:1 */
+  --viz-3: #a38acf; /* violet  6.50:1 */
+  --viz-4: #3586b7; /* steel   4.80:1 */
+  --viz-5: #8a6420; /* ochre   3.59:1 */
+
+  --seq-1: #93e0c3; /* 12.54:1 */
+  --seq-2: #50cc9f; /*  9.60:1 */
+  --seq-3: #33b082; /*  7.03:1 */
+  --seq-4: #2a926c; /*  4.97:1 */
+  --seq-5: #278561; /*  4.23:1 */
+
+  --clay-1: #eab9ac; /* 11.02:1 */
+  --clay-2: #e29b89; /*  8.50:1 */
+  --clay-3: #d77861; /*  6.18:1 */
+  --clay-4: #cc5133; /*  4.39:1 */
+  --clay-5: #c04a2e; /*  3.90:1 */
+
+  --viz-muted: #7b867e; /* 5.09:1 */
+  --viz-ref: #cdd5cd; /* 12.82:1 */
+  --viz-track: #2c2d2f;
+  --viz-tooltip: #eceee9;
+  --viz-tooltip-ink: #12160f;
+
+  /* A spotlight simulates LIGHT falling on a surface, and light is white.
+     This was `color-mix(var(--accent) 14%)` — 14% lime — which is the other
+     half of the olive: every KPI tile carried a permanent yellow-green wash
+     because the effect defaulted to the centre of the card and never turned
+     off. Using the brand accent for a lighting effect is the same mistake as
+     using it for a data mark: brand colour is identity, not illumination. */
+  --spotlight: rgb(255 255 255 / 0.055);
+}
+
+
+/* A hairline along the top of a surface, catching light like a physical panel.
+   Costs nothing in light mode where it resolves to transparent. */
+.lift {
+  box-shadow:
+    inset 0 1px 0 var(--edge-light),
+    var(--shadow);
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-raised: var(--surface-raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-primary-tint: var(--primary-tint);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-quiet: var(--accent-quiet);
+  --color-amber: var(--amber);
+  --color-amber-tint: var(--amber-tint);
+  --color-rust: var(--rust);
+  --color-rust-tint: var(--rust-tint);
+  --color-info: var(--info);
+  --color-info-tint: var(--info-tint);
+}
+
+/* ==========================================================================
+   BASE
+   ========================================================================== */
+
+html {
+  /* 1.65, not 1.4. Devanagari matras — the marks above and below the line —
+     clip at tighter leading, and that is the single most common Hindi
+     rendering bug (addendum §2.5). Setting it now means Phase 7 adds strings
+     rather than rediscovering the layout. */
+  line-height: 1.65;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  -webkit-font-smoothing: antialiased;
+  /* Kills the 300ms tap delay without disabling pinch-zoom. */
+  touch-action: manipulation;
+}
+
+/* Machine codes, ticket IDs, quantities and timings. Tabular figures keep
+   columns aligned, which does more for a metrics board than any chart styling. */
+.tabular,
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Visible focus, always. Removing focus rings is the most common accessibility
+   regression in a design pass, and a shared floor tablet is often driven with a
+   keyboard when the touchscreen gets unreliable. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Every interactive element clears 44px, per Apple HIG and Material. Gloved
+   hands and a cracked digitiser both need the margin. */
+:where(button, a[role='button'], input[type='submit']) {
+  min-height: 44px;
+}
+
+::selection {
+  background: var(--primary-tint);
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   SIGNATURE — the arch and the plate
+
+   Two devices, both taken from things that already exist in this world.
+
+   THE ARCH is the silhouette of the Greenlam mark: a flat-sided shape with a
+   rounded top, the window the peacock sits in. Used as the corner radius
+   language on anything that frames content — cards, the status rail, the scan
+   target. It is a proportion, not a picture, so it reads as the brand without
+   reproducing the logo.
+
+   THE PLATE is the stamped tag on the side of a machine: mono type, ruled
+   edge, the short code that is physically printed on the QR sticker. What is
+   on screen matches what is on the machine.
+
+   Everything else stays quiet. One loud idea, executed properly.
+   ========================================================================== */
+
+.arch {
+  border-radius: 14px 14px 5px 5px;
+}
+
+/* Section identity. A 4px feather down the left edge, always beside the
+   section's name — colour is never the only cue, and these hues cannot carry
+   text at both themes anyway. */
+.feather {
+  border-left: 4px solid var(--feather, var(--line-strong));
+}
+
+/* The live pulse on an escalated ticket. Transform and opacity only, and it
+   stops dead under prefers-reduced-motion. */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: pulse-ring 1.8s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse::after {
+    animation: none;
+  }
+}
+
+.plate {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.02em;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--ink-muted);
+  padding: 0.125rem 0.375rem;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* The ledger rule under the app bar. A hairline, and that is the whole idea. */
+.register-rule {
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 0 var(--surface);
+}
+
+
+/* ==========================================================================
+   BOARD ATMOSPHERE
+   Everything below applies to /board only. The floor app never loads it.
+
+   The split is mechanical, not a matter of taste. `TiltCard` and the magnetic
+   hover are driven by pointer position — on a touchscreen they are dead code.
+   Aurora is a blur(90px) filter, and blur costs 15-30% of the frame budget on
+   the mid-range Android in a press hall. Both are correct on a desktop or a
+   wall screen and wrong in someone's hand.
+   ========================================================================== */
+
+.board-surface {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Ambient glow — DARK ONLY, and no longer lime.
+   ---------------------------------------------------------------------------
+   This was a 40vw blurred LIME blob at 0.4 opacity sitting behind the whole
+   board, plus a forest one beside it. Two consequences, both bad:
+
+   1. On paper it cast the entire light theme green. The canvas is meant to be
+      paper — #f7f6f2 — and every "white" card sat on a pale green wash that
+      made the surfaces look tinted rather than clean. Light mode now paints
+      nothing behind the content at all.
+
+   2. In dark it was half of the olive. Lime is a yellow-green; blurred across
+      a dark green-grey ground at 40% it is literally the recipe for swamp.
+
+   What survives is depth, not colour: a forest glow and a cool counterweight,
+   both at low opacity, in dark only. Two blobs of the same hue would be
+   pointless — the pairing is what reads as light in a room rather than a
+   coloured filter over the page. */
+.aurora {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(100px);
+  opacity: 0.22;
+  will-change: transform;
+  pointer-events: none;
+  z-index: -1;
+}
+.aurora-1 {
+  width: 40vw;
+  height: 40vw;
+  left: -10%;
+  top: -18%;
+  background: radial-gradient(circle, var(--primary), transparent 62%);
+  animation: drift-1 22s ease-in-out infinite alternate;
+}
+.aurora-2 {
+  width: 32vw;
+  height: 32vw;
+  right: -6%;
+  top: 4%;
+  background: radial-gradient(circle, var(--info), transparent 62%);
+  animation: drift-2 28s ease-in-out infinite alternate;
+}
+/* Light mode gets paper and white cards. Nothing behind them. */
+:root .aurora,
+[data-theme='light'] .aurora {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .aurora {
+    display: block;
+  }
+}
+[data-theme='dark'] .aurora {
+  display: block;
+}
+@keyframes drift-1 {
+  to {
+    transform: translate(16%, 24%) scale(1.16);
+  }
+}
+@keyframes drift-2 {
+  to {
+    transform: translate(-12%, 10%) scale(1.09);
+  }
+}
+
+/* Gradient hairline on the hero KPI. Masked so only the 1px ring paints. */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--accent), transparent 45%, var(--primary));
+  /* A 1px identity ring on the hero tile is an accent, not a wash — but at
+     0.55 on paper it read as a green edge around a white card. Halved in
+     light, kept in dark where it is the only saturated thing on screen. */
+  opacity: 0.28;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+[data-theme='dark'] .gradient-border::before {
+  opacity: 0.55;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .gradient-border::before {
+    opacity: 0.55;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Rank markers. Only used where order actually carries information — the
+   worst-machine list is a ranking, so numbering it says something true. */
+.rank-marker {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   THE SIGN-IN MARK
+   The fan opens once, left to right. Transform and opacity only, so it stays
+   on the compositor — this runs on the cheapest phone in the plant.
+   ========================================================================== */
+
+/* The pivot is the fan's hinge, expressed in the ROTATED group's own
+   coordinates — which is the origin, because the parent already moved us
+   there. `fill-box` would be wrong: each quill's own box is not the hinge. */
+.brand-lockup .feather-quill {
+  transform-box: view-box;
+  transform-origin: 60px 100px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .brand-lockup .feather-quill {
+    animation: feather-open 620ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+}
+
+@keyframes feather-open {
+  from {
+    /* Folded down into the hinge, not faded in from nowhere — a fan opens.
+       Scale only: the ANGLE belongs to the parent group and must not be
+       touched here, or the feather swings instead of unfurling. */
+    transform: scale(0.06);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* The spectrum as a hairline. The same eight hues as the fan, laid flat —
+   the mark's idea restated once, quietly, to close the header block. */
+.brand-rule {
+  display: block;
+  width: 132px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--feather-1) 0 12.5%,
+    var(--feather-2) 12.5% 25%,
+    var(--feather-3) 25% 37.5%,
+    var(--feather-4) 37.5% 50%,
+    var(--feather-5) 50% 62.5%,
+    var(--feather-6) 62.5% 75%,
+    var(--feather-7) 75% 87.5%,
+    var(--feather-8) 87.5% 100%
+  );
+  opacity: 0.9;
+}
