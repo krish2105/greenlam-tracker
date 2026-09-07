@@ -134,13 +134,13 @@ class TestScopeStillFailsClosed:
             id: int = 1
 
         with pytest.raises(TypeError, match="cannot be tenant-scoped"):
-            scope(Unscoped, Principal(user_id=1, role="dashboard", home_plant_id=1))
+            scope(Unscoped, Principal(user_id=1, areas=frozenset({"dashboard"}), home_plant_id=1))
 
     def test_no_plant_means_no_rows_not_all_rows(self):
         from app.models import Machine
         from app.tenancy import Principal, scope
 
-        principal = Principal(user_id=1, role="dashboard", home_plant_id=1)
+        principal = Principal(user_id=1, areas=frozenset({"dashboard"}), home_plant_id=1)
         principal.plant_ids = []
         # Fails closed: the predicate must exclude everything, never match all.
         assert "IS NULL" in str(scope(Machine, principal)).upper()

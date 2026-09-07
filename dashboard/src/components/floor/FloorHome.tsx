@@ -10,10 +10,23 @@
  * press operator scrolling past eight paper fields he can never fill.
  *
  * Two doors, each opening onto only what that person needs.
+ *
+ * AND ONLY THE DOORS THEY HOLD
+ *
+ * V5 §3 makes Maintenance and HPL Production separate access areas, so a kettle
+ * operator sees one door and a technician sees the other. Somebody holding
+ * both — common on a small shift — still sees two.
+ *
+ * A door nobody can walk through is worse than a missing one: it teaches people
+ * that half the app is broken, and they stop trusting the half that works.
  */
 
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+
+import { can } from '@greenlam/core';
+
+import * as api from '../../lib/api';
 
 function Door({
   to,
@@ -59,8 +72,16 @@ function Door({
   );
 }
 
-export function FloorHome() {
+export function FloorHome({ user }: { user: api.ApiUser }) {
   const { t } = useTranslation();
+
+  const showProduction = can(user.areas, 'logProduction');
+  const worksTickets = can(user.areas, 'workTicket') || can(user.areas, 'reopenTicket');
+  // Reporting a breakdown lives behind this door too, and reporting one is
+  // never gated (CLAUDE.md) — the person standing next to the stopped machine
+  // is whoever happens to be standing next to it, usually an operator. So the
+  // door opens for them; only what it PROMISES changes.
+  const showMaintenance = worksTickets || can(user.areas, 'raiseTicket');
 
   return (
     <div className="pt-2">
@@ -68,15 +89,23 @@ export function FloorHome() {
         {t('floorHome.title')}
       </h1>
       <p className="mt-1" style={{ color: 'var(--ink-muted)', fontSize: 'var(--text-sm)' }}>
-        {t('floorHome.subtitle')}
+        {/* "Two jobs, two doors" is a lie to somebody holding one area, and the
+            kind of small wrongness that makes an app feel like it was written
+            for someone else. */}
+        {showMaintenance && showProduction
+          ? t('floorHome.subtitle')
+          : t('floorHome.subtitleOne')}
       </p>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        {showMaintenance && (
         <Door
           to="/floor/maintenance"
           tone="accent"
           title={t('floorHome.maintenance')}
-          detail={t('floorHome.maintenanceDetail')}
+          detail={t(
+            worksTickets ? 'floorHome.maintenanceDetail' : 'floorHome.maintenanceDetailRaiseOnly',
+          )}
           icon={
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -84,6 +113,8 @@ export function FloorHome() {
             </svg>
           }
         />
+        )}
+        {showProduction && (
         <Door
           to="/floor/production"
           tone="quiet"
@@ -96,6 +127,7 @@ export function FloorHome() {
             </svg>
           }
         />
+        )}
       </div>
     </div>
   );

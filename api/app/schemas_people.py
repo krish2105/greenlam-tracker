@@ -17,7 +17,7 @@ from pydantic import BaseModel
 class PerformanceRead(BaseModel):
     user_id: int
     name: str
-    role: str
+    areas: list[str]
 
     period_days: int
     period_start: date
@@ -46,7 +46,7 @@ class PerformanceRead(BaseModel):
 class TeamMemberRead(BaseModel):
     user_id: int
     name: str
-    role: str
+    areas: list[str]
     raised_count: int
     resolved_count: int
     avg_ack_minutes: float | None

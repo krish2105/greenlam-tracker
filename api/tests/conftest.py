@@ -24,6 +24,15 @@ from sqlmodel import Session
 
 API_DIR = Path(__file__).resolve().parent.parent
 
+# Every access area, for the fixture that stands in for the old `dashboard`
+# role. Imported rather than written out so a seventh area cannot be added
+# without this list following it.
+def _all_areas() -> tuple[str, ...]:
+    from app.roles import AREAS
+
+    return AREAS
+
+
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",
     "postgresql+psycopg://greenlam:greenlam@localhost:5432/greenlam_test",
@@ -159,33 +168,42 @@ def plant_fixture(session: Session):
     )
     session.add(machine)
 
+    from app.models import UserAccessArea
+
     pins = {}
-    # Two levels now (app/roles.py). The old ten-role names are kept as ALIASES
-    # below so a test that says `auth_headers("operator")` still means "someone
-    # on the floor" — renaming forty call sites would have buried the actual
-    # behaviour changes in this diff.
-    for employee_id, role, pin in [
-        ("T001", "app", "481920"),
-        ("T002", "dashboard", "573014"),
+    # Six combinable access areas now (app/roles.py). The old role names are
+    # kept as ALIASES below so a test that says `auth_headers("operator")` still
+    # means "someone on the floor" — renaming forty call sites would have buried
+    # the actual behaviour changes in this diff.
+    #
+    # "app" holds both floor areas, which is what the old `app` role did.
+    # "dashboard" holds all six, which is what the old `dashboard` role did and
+    # what migration 0014 backfills those accounts to.
+    for employee_id, label, areas, pin in [
+        ("T001", "app", ("hpl_production", "maintenance"), "481920"),
+        ("T002", "dashboard", _all_areas(), "573014"),
         # A SECOND floor user, so "can a colleague see my numbers" is a real
         # question. With one app account the peer test compared a person with
         # themselves and passed for the wrong reason.
-        ("T003", "peer", "628351"),
+        ("T003", "peer", ("hpl_production", "maintenance"), "628351"),
     ]:
         user = User(
             plant_id=plant.id,
             unit_id=unit.id,
             employee_id=employee_id,
             name=f"User {employee_id}",
-            role="app" if role == "peer" else role,
             pin_hash=hash_pin(employee_id, pin),
+            approved_at=utcnow(),
         )
         session.add(user)
         session.commit()
         session.refresh(user)
-        pins[role] = (employee_id, pin)
+        for area in areas:
+            session.add(UserAccessArea(user_id=user.id, area=area))
+        session.commit()
+        pins[label] = (employee_id, pin)
 
-    # Aliases from the retired ten-role vocabulary onto the two that remain.
+    # Aliases from the retired role vocabulary onto the three fixtures above.
     for old, new in (
         ("operator", "app"),
         ("technician", "peer"),

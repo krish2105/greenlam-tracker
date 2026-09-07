@@ -33,9 +33,10 @@ from sqlmodel import select
 
 from ..deps import PrincipalDep, SessionDep
 from ..lifecycle import CLOSED_STAGE
-from ..models import Ticket, User, utcnow
+from ..models import Ticket, User, UserAccessArea, utcnow
 from ..schemas_people import PerformanceRead, TeamMemberRead, TeamPerformanceRead
 from ..tenancy import Principal, scope
+from ..user_read import areas_of
 
 router = APIRouter(prefix="/people", tags=["people"])
 
@@ -101,7 +102,7 @@ def _performance_for(
     return PerformanceRead(
         user_id=user.id,
         name=user.name,
-        role=user.role,
+        areas=areas_of(session, user.id),
         period_days=days,
         period_start=since.date(),
         period_end=end.date(),
@@ -147,9 +148,19 @@ def team_performance(
     if not principal.can("view_dashboard"):
         raise _NOT_FOUND
 
+    # The people whose repair work this measures: anyone holding Maintenance.
+    #
+    # This used to filter on `role IN ('operator','technician')`, names that
+    # stopped existing when the ten-role model was replaced by two — so the
+    # filter had quietly matched nobody and the team view had been empty ever
+    # since. Asking the access table instead means the list follows whoever
+    # actually holds the area.
+    maintenance = session.exec(
+        select(UserAccessArea.user_id).where(UserAccessArea.area == "maintenance")
+    ).all()
     people = session.exec(
         scope(User, principal)
-        .where(User.is_active.is_(True), User.role.in_(("operator", "technician")))
+        .where(User.is_active.is_(True), User.id.in_(maintenance or [0]))
         .order_by(User.name)
     ).all()
 
@@ -160,7 +171,7 @@ def team_performance(
             TeamMemberRead(
                 user_id=p.user_id,
                 name=p.name,
-                role=p.role,
+                areas=p.areas,
                 raised_count=p.raised_count,
                 resolved_count=p.resolved_count,
                 avg_ack_minutes=p.avg_ack_minutes,

@@ -14,13 +14,19 @@
  * retry/backoff behaviour; nothing here should grow into a sync engine.
  */
 
-import type { Role, ThemePreference } from '@greenlam/core';
+import type { Area, ThemePreference } from '@greenlam/core';
 
 export interface ApiUser {
   id: number;
   employee_id: string;
   name: string;
-  role: Role;
+  /**
+   * Every access area this person holds (V5 §3). Combinable, and an empty list
+   * is meaningful: either the account is waiting in the approval queue, or its
+   * access was revoked. `approved_at` tells those apart.
+   */
+  areas: Area[];
+  approved_at: string | null;
   plant_id: number;
   unit_id: number | null;
   section_id: number | null;
@@ -1188,4 +1194,57 @@ export function correctProduction(
 
 export function productionCorrections(logId: string): Promise<CorrectionEntry[]> {
   return request<CorrectionEntry[]>(`/production/${logId}/corrections`);
+}
+
+
+// ---------------------------------------------------------------------------
+// Access areas, signup and approval (V5 §3)
+// ---------------------------------------------------------------------------
+
+export interface PendingUser {
+  id: number;
+  employee_id: string;
+  name: string;
+  phone: string | null;
+  signed_up_at: string;
+}
+
+/** Creates an account holding nothing. It can sign in and must then wait. */
+export function signup(body: {
+  employee_id: string;
+  name: string;
+  pin: string;
+  phone?: string | null;
+}): Promise<ApiUser> {
+  return request<ApiUser>('/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+/** Everyone at this plant. Admin only — the server refuses otherwise. */
+export function listUsers(): Promise<ApiUser[]> {
+  return request<ApiUser[]>('/masters/users');
+}
+
+export function pendingUsers(): Promise<PendingUser[]> {
+  return request<PendingUser[]>('/access/pending');
+}
+
+export function approveUser(userId: number, areas: string[]): Promise<ApiUser> {
+  return request<ApiUser>(`/access/users/${userId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ areas }),
+  });
+}
+
+/**
+ * The areas this person should hold afterwards — absolute, not a delta.
+ * An empty list revokes their access entirely.
+ */
+export function setUserAreas(userId: number, areas: string[]): Promise<ApiUser> {
+  return request<ApiUser>(`/access/users/${userId}/areas`, {
+    method: 'PUT',
+    body: JSON.stringify({ areas }),
+  });
 }

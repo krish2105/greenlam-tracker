@@ -14,10 +14,10 @@ from typing import Annotated
 
 import jwt
 from fastapi import Depends, HTTPException, Request, status
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from .db import get_session
-from .models import User
+from .models import User, UserAccessArea
 from .security import decode_token
 from .tenancy import Principal
 
@@ -48,12 +48,19 @@ def get_principal(request: Request, session: SessionDep) -> Principal:
     if user is None or not user.is_active:
         raise _UNAUTHORIZED
 
+    # Areas are read on every request rather than carried in the token, for
+    # the same reason the user row is: revoking somebody's access has to bite
+    # immediately, not whenever their thirty-minute token happens to expire.
+    areas = session.exec(
+        select(UserAccessArea.area).where(UserAccessArea.user_id == user.id)
+    ).all()
+
     # Scope is the user's own plant. The separate grants table is gone — see
     # tenancy.py for why the section axis was deleted rather than left always
     # passing.
     return Principal(
         user_id=user.id,
-        role=user.role,
+        areas=frozenset(areas),
         home_plant_id=user.plant_id,
         home_unit_id=user.unit_id,
         plant_ids=[user.plant_id],
@@ -79,7 +86,7 @@ def require(capability: str) -> Callable[[Principal], Principal]:
     Rank cannot express this hierarchy: a shareholder outranks everyone on the
     org chart and may do less in this system than an operator. Naming the
     capability also makes the intent readable at the call site —
-    `require("verify_close")` says what the endpoint is for.
+    `require("reopen_ticket")` says what the endpoint is for.
     """
 
     def _check(principal: PrincipalDep) -> Principal:
@@ -95,7 +102,8 @@ def require(capability: str) -> Callable[[Principal], Principal]:
 
 CanRaise = Annotated[Principal, Depends(require("raise_ticket"))]
 CanWork = Annotated[Principal, Depends(require("work_ticket"))]
-CanVerify = Annotated[Principal, Depends(require("verify_close"))]
+CanReopen = Annotated[Principal, Depends(require("reopen_ticket"))]
+CanApproveUsers = Annotated[Principal, Depends(require("approve_users"))]
 CanLogProduction = Annotated[Principal, Depends(require("log_production"))]
 CanEditMasters = Annotated[Principal, Depends(require("edit_masters"))]
 CanManageUsers = Annotated[Principal, Depends(require("manage_users"))]

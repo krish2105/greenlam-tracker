@@ -14,9 +14,10 @@ import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 
-import { can, homeRouteFor, type ThemePreference } from '@greenlam/core';
+import { can, homeRouteFor, isPendingApproval, type ThemePreference } from '@greenlam/core';
 
 import { AppHeader } from './components/AppHeader';
+import { NoAccess } from './components/NoAccess';
 import { OutboxBanner } from './components/OutboxBanner';
 import { ArchMark } from './components/ArchMark';
 import { FloorHome } from './components/floor/FloorHome';
@@ -35,6 +36,9 @@ const ImportView = lazy(() =>
   import('./components/imports/ImportView').then((m) => ({ default: m.ImportView })),
 );
 // Also dashboard-only, also lazy. The floor never edits a vocabulary.
+const AccessView = lazy(() =>
+  import('./components/access/AccessView').then((m) => ({ default: m.AccessView })),
+);
 const MastersView = lazy(() =>
   import('./components/masters/MastersView').then((m) => ({ default: m.MastersView })),
 );
@@ -130,11 +134,12 @@ function SignedIn({
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Two levels. Everybody gets the floor — reporting a machine that stopped is
-  // never a privilege — and the dashboard is the thing a named few also hold.
-  const showFloor = true;
-  const showBoard = can(user.role, 'viewDashboard');
-  const home = homeRouteFor(user.role);
+  // Six combinable areas (V5 §3). The floor shows for anyone who can act on
+  // it; the board is a separate grant, and holding it does not imply the floor
+  // — a plant head reads every number and acknowledges nothing.
+  const showFloor = can(user.areas, 'raiseTicket') || can(user.areas, 'logProduction');
+  const showBoard = can(user.areas, 'viewDashboard');
+  const home = homeRouteFor(user.areas);
 
   // Send people to the surface built for their job rather than dropping
   // everyone on the same landing page.
@@ -142,13 +147,35 @@ function SignedIn({
     if (location.pathname === '/') navigate(home, { replace: true });
   }, [location.pathname, home, navigate]);
 
+  // Holding nothing is a real state, not an error. Every screen behind this
+  // would 403, and showing them to somebody who cannot use them is how a new
+  // person concludes the app is broken rather than that they are waiting.
+  if (user.areas.length === 0) {
+    return (
+      <div className="flex min-h-dvh flex-col">
+        <AppHeader
+          user={user}
+          showFloor={false}
+          showBoard={false}
+          showImport={false}
+          showAccess={false}
+          onSignOut={onSignOut}
+        />
+        <main id="main" className="flex-1">
+          <NoAccess name={user.name} pending={isPendingApproval(user)} />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-dvh flex-col">
       <AppHeader
         user={user}
         showFloor={showFloor}
         showBoard={showBoard}
-        showImport={can(user.role, 'editMasters')}
+        showImport={can(user.areas, 'editMasters')}
+        showAccess={can(user.areas, 'approveUsers')}
         onSignOut={onSignOut}
       />
       <OutboxBanner />
@@ -164,14 +191,14 @@ function SignedIn({
               production are done by different people at different moments, and
               one combined screen showed a press operator eight paper fields he
               could never fill. */}
-          <Route path="/floor" element={<FloorHome />} />
+          <Route path="/floor" element={<FloorHome user={user} />} />
           <Route
             path="/floor/maintenance"
             element={
               <FloorView
                 user={user}
-                canRaise={can(user.role, 'raiseTicket')}
-                canSeeTeam={can(user.role, 'viewDashboard')}
+                canRaise={can(user.areas, 'raiseTicket')}
+                canSeeTeam={can(user.areas, 'viewDashboard')}
               />
             }
           />
@@ -183,9 +210,25 @@ function SignedIn({
           <Route
             path="/setup"
             element={
-              can(user.role, 'editMasters') ? (
+              can(user.areas, 'editMasters') ? (
                 <Suspense fallback={<Splash />}>
                   <MachineSetupView />
+                </Suspense>
+              ) : (
+                <Navigate to={home} replace />
+              )
+            }
+          />
+          {/* Approving accounts and granting areas. Its own capability rather
+              than riding on `editMasters`: deciding who gets in is a different
+              decision from renaming a machine, even though the same people do
+              both today. */}
+          <Route
+            path="/access"
+            element={
+              can(user.areas, 'approveUsers') ? (
+                <Suspense fallback={<Splash />}>
+                  <AccessView />
                 </Suspense>
               ) : (
                 <Navigate to={home} replace />
@@ -195,7 +238,7 @@ function SignedIn({
           <Route
             path="/masters"
             element={
-              can(user.role, 'editMasters') ? (
+              can(user.areas, 'editMasters') ? (
                 <Suspense fallback={<Splash />}>
                   <MastersView />
                 </Suspense>
@@ -207,7 +250,7 @@ function SignedIn({
           <Route
             path="/import"
             element={
-              can(user.role, 'editMasters') ? (
+              can(user.areas, 'editMasters') ? (
                 <Suspense fallback={<Splash />}>
                   <ImportView />
                 </Suspense>

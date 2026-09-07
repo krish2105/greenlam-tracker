@@ -52,6 +52,7 @@ from .models import (
     TicketEvent,
     TicketMaterial,
     User,
+    UserAccessArea,
     utcnow,
 )
 
@@ -187,20 +188,25 @@ def generate(session: Session, plant_id: int, unit_id: int) -> dict[str, int]:
     categories = {c.name: c for c in session.exec(select(Category)).all()}
     reject_reasons = session.exec(select(RejectReason)).all()
     shifts = session.exec(select(Shift)).all()
-    # Roles collapsed from ten to two, so keying this map by role name stopped
-    # finding anyone: "operator" and "technician" no longer exist and every
-    # lookup returned None, which made `raised_by` null and the insert fail on
-    # a NOT NULL. Pick real people instead — an app user raises, a dashboard
-    # user works it — and fall back to whoever exists rather than to None.
+    # Keyed by access area, which is the third vocabulary this lookup has used.
+    # It was ten role names, then two, and each time the names changed this map
+    # silently stopped finding anyone: every lookup returned None, `raised_by`
+    # went null and the insert died on a NOT NULL.
+    #
+    # Falling back to "whoever exists" rather than to None is the part that
+    # makes the next rename survivable — a demo generated with the wrong person
+    # raising tickets is a cosmetic problem, a crash is not.
     everyone = session.exec(select(User)).all()
-    users = {u.role: u for u in everyone}
+    by_area: dict[str, User] = {}
+    for row in session.exec(select(UserAccessArea)).all():
+        by_area.setdefault(row.area, next((u for u in everyone if u.id == row.user_id), None))
 
     if not machines or not shifts:
         return {"tickets": 0, "production": 0}
 
-    operator = users.get("app") or (everyone[0] if everyone else None)
-    technician = users.get("dashboard") or operator
-    manager = users.get("manager")
+    operator = by_area.get("hpl_production") or (everyone[0] if everyone else None)
+    technician = by_area.get("maintenance") or operator
+    manager = by_area.get("manager") or by_area.get("supervisor")
 
     machine_weights = [(m, BAD_ACTORS.get(m.code, DEFAULT_WEIGHT)) for m in machines]
     category_pairs = [(name, profile[0]) for name, profile in CATEGORY_PROFILE.items()]
@@ -332,7 +338,7 @@ def generate(session: Session, plant_id: int, unit_id: int) -> dict[str, int]:
 
     # Impregnation runs BEFORE pressing, in the plant and here — production
     # needs the rolls to point at.
-    logger = users.get("app") or next(iter(users.values()), None)
+    logger = by_area.get("hpl_production") or operator
     rolls_made, rolls = (
         _seed_impregnation(session, plant_id, unit_id, rng, start, now, logger.id)
         if logger is not None
@@ -347,7 +353,7 @@ def generate(session: Session, plant_id: int, unit_id: int) -> dict[str, int]:
         machines,
         shifts,
         reject_reasons,
-        users,
+        by_area,
         start,
         now,
         rolls,
@@ -391,7 +397,7 @@ def _generate_production(
     machines: list[Machine],
     shifts: list[Shift],
     reject_reasons: list[RejectReason],
-    users: dict[str, User],
+    by_area: dict[str, User],
     start: datetime,
     now: datetime,
     impregnation_rolls: list | None = None,
@@ -430,7 +436,7 @@ def _generate_production(
             day - timedelta(days=offset) for offset in range(0, 3)
         )
 
-    logger = users.get("app") or next(iter(users.values()), None)
+    logger = by_area.get("hpl_production") or next(iter(by_area.values()), None)
     if logger is None:
         return 0
 

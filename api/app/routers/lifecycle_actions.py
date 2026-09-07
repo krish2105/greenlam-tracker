@@ -299,7 +299,7 @@ def reopen(ticket_id: UUID, body: ReopenIn, principal: PrincipalDep, session: Se
     closure, so the only real safety net is somebody noticing the machine is
     still broken — and that net is worth keeping wide.
     """
-    if not (principal.can("work_ticket") or principal.can("verify_close")):
+    if not principal.can("reopen_ticket"):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, detail="Your role does not have access to this."
         )

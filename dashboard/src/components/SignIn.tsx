@@ -42,6 +42,13 @@ export function SignIn({ onSignedIn }: { onSignedIn: (user: api.ApiUser) => void
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  // The same form, in two modes. Signing up asks for one more field and posts
+  // somewhere else; everything around it — the ID, the PIN, the show/hide, the
+  // error handling — is identical, and building it twice would mean two places
+  // for the PIN rules to drift apart.
+  const [signingUp, setSigningUp] = useState(false);
+  const [name, setName] = useState('');
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!employeeId.trim() || !pin) {
@@ -53,9 +60,21 @@ export function SignIn({ onSignedIn }: { onSignedIn: (user: api.ApiUser) => void
       return;
     }
 
+    if (signingUp && !name.trim()) {
+      setError(t('signIn.errors.missingName'));
+      return;
+    }
+
     setBusy(true);
     setError('');
     try {
+      if (signingUp) {
+        await api.signup({ employee_id: employeeId.trim(), name: name.trim(), pin });
+      }
+      // Signed in either way. A new account holds nothing and lands on the
+      // waiting screen — which is a far better answer than "account created,
+      // now sign in", which is one more chance to mistype the PIN they just
+      // chose.
       onSignedIn(await api.login(employeeId.trim(), pin, deviceUid()));
     } catch (err) {
       setError(messageFor(err, t));
@@ -154,6 +173,32 @@ export function SignIn({ onSignedIn }: { onSignedIn: (user: api.ApiUser) => void
               </p>
             </div>
 
+            {signingUp && (
+              <div>
+                <label
+                  htmlFor="signup-name"
+                  className="mb-1 block font-medium"
+                  style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)' }}
+                >
+                  {t('signIn.name')}
+                </label>
+                <input
+                  id="signup-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
+                  className="w-full rounded-lg border px-3 py-3"
+                  style={inputStyle}
+                />
+                <p
+                  className="mt-1"
+                  style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}
+                >
+                  {t('signIn.nameHint')}
+                </p>
+              </div>
+            )}
+
             <div>
               <label
                 htmlFor="pin"
@@ -223,7 +268,23 @@ export function SignIn({ onSignedIn }: { onSignedIn: (user: api.ApiUser) => void
               className="w-full rounded-lg py-3 font-medium disabled:opacity-60"
               style={{ background: 'var(--primary)', color: 'var(--primary-ink)' }}
             >
-              {busy ? t('signIn.submitting') : t('signIn.submit')}
+              {busy
+                ? t('signIn.submitting')
+                : signingUp
+                  ? t('signIn.signUpSubmit')
+                  : t('signIn.submit')}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSigningUp((v) => !v);
+                setError('');
+              }}
+              className="w-full py-2"
+              style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-muted)' }}
+            >
+              {signingUp ? t('signIn.haveAccount') : t('signIn.needAccount')}
             </button>
           </form>
         </div>
@@ -239,6 +300,10 @@ function messageFor(err: unknown, t: TFunction): string {
       return t('signIn.errors.offline');
     case 401:
       return t('signIn.errors.rejected');
+    case 409:
+      return t('signIn.errors.idTaken');
+    case 422:
+      return t('signIn.errors.weakPin');
     case 423:
       return t('signIn.errors.lockedHard');
     case 429:

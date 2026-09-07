@@ -37,7 +37,11 @@ class Principal:
     """Who is asking, and what they may do."""
 
     user_id: int
-    role: str
+    # Every area this person holds. Capabilities are the union over them, so an
+    # empty set is a real and meaningful state: a signup nobody has approved,
+    # or an account whose access was deliberately emptied. Both can sign in and
+    # neither can do anything, which is the point.
+    areas: frozenset[str]
     home_plant_id: int
     home_unit_id: int | None = None
     # Which plants this person may read. One entry today; the list shape is
@@ -49,17 +53,31 @@ class Principal:
             self.plant_ids = [self.home_plant_id]
 
     def can(self, capability: str) -> bool:
-        return can(self.role, capability)
+        return can(self.areas, capability)
+
+    def holds(self, area: str) -> bool:
+        """Whether a specific area is held, as opposed to a capability.
+
+        Used where V5 names the area rather than the permission — the approval
+        queue is Admin's, not "whoever can approve users", even though those
+        are the same people today.
+        """
+        return area in self.areas
+
+    @property
+    def is_approved(self) -> bool:
+        return bool(self.areas)
 
     @property
     def sees_dashboard(self) -> bool:
-        return sees_dashboard(self.role)
+        return sees_dashboard(self.areas)
 
     def covers_plant(self, plant_id: int) -> bool:
         return plant_id in self.plant_ids
 
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
-        return f"<Principal user={self.user_id} role={self.role} plants={self.plant_ids}>"
+        areas = ",".join(sorted(self.areas)) or "none"
+        return f"<Principal user={self.user_id} areas={areas} plants={self.plant_ids}>"
 
 
 def scope[T: SQLModel](model: type[T], principal: Principal) -> SelectOfScalar[T]:

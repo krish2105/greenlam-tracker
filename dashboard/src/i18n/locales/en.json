@@ -63,8 +63,16 @@
       "lockedSoft": "Too many attempts. Try again in {{seconds}} seconds.",
       "lockedHard": "This account is locked. Ask your supervisor to unlock it.",
       "offline": "No connection. Sign in once while online, then the app keeps working offline.",
-      "unknown": "Something went wrong. Try again."
-    }
+      "unknown": "Something went wrong. Try again.",
+      "missingName": "Enter your name.",
+      "idTaken": "That employee ID is already registered. Sign in instead, or ask an admin.",
+      "weakPin": "Pick a different PIN — not a repeat like 111111 or a run like 123456."
+    },
+    "name": "Your name",
+    "nameHint": "As it should appear on tickets you raise.",
+    "needAccount": "I don't have an account yet",
+    "haveAccount": "I already have an account",
+    "signUpSubmit": "Create my account"
   },
   "floor": {
     "title": "Floor",
@@ -569,7 +577,9 @@
     "maintenance": "Maintenance",
     "maintenanceDetail": "Report a breakdown, or work on one",
     "production": "Production",
-    "productionDetail": "Log what a machine made this shift"
+    "productionDetail": "Log what a machine made this shift",
+    "subtitleOne": "Here is what you can log.",
+    "maintenanceDetailRaiseOnly": "Report a machine that has stopped"
   },
   "resin": {
     "title": "Resin batch — {{machine}}",
@@ -622,5 +632,35 @@
     "empty": "Nothing logged yet.",
     "counts": "{{produced}} made · {{rejected}} rejected",
     "correct": "Correct this entry"
+  },
+  "noAccess": {
+    "pendingTitle": "Thanks, {{name}} — you're in the queue",
+    "pendingBody": "Your account has been created. Someone with admin access needs to switch on what you should be able to reach before you can start.",
+    "revokedTitle": "Your access has been removed",
+    "revokedBody": "Your account is still here, but it has nothing switched on. Ask an admin if you think this is wrong.",
+    "hint": "You can close the app. Sign in again once you've been told you're set up."
+  },
+  "access": {
+    "nav": "Access",
+    "title": "Who gets in, and what they can reach",
+    "subtitle": "Switch on whichever areas apply. Someone can hold one, several, or all six.",
+    "waiting": "Waiting for approval ({{count}})",
+    "noneWaiting": "Nobody is waiting.",
+    "signedUp": "{{id}} · signed up {{when}}",
+    "everyone": "Everyone else",
+    "approve": "Approve",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "failed": "Could not save that. Try again.",
+    "areasLegend": "Access areas",
+    "revokeWarning": "Saving with nothing ticked removes {{name}}'s access entirely.",
+    "areas": {
+      "hpl_production": "HPL Production",
+      "maintenance": "Maintenance",
+      "supervisor": "Supervisor",
+      "manager": "Manager",
+      "dashboard": "Dashboard",
+      "admin": "Admin"
+    }
   }
 }

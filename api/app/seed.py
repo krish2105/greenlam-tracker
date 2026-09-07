@@ -41,28 +41,42 @@ from . import demo_data, lifecycle
 from .config import get_settings
 from .db import engine
 from .models import (
+    Attachment,
+    AuditLog,
     Category,
     Design,
     Device,
+    ExportRun,
     ImportRun,
     ImpregnationLog,
     Machine,
     PaperCompany,
     PaperGrade,
     Plant,
+    PlantSetting,
+    PmCompletion,
+    PmSchedule,
+    ProductionCorrection,
     ProductionLog,
+    QrScan,
     RefreshToken,
     RejectReason,
+    ResinBatch,
+    ReviewRun,
     Section,
     Shift,
+    ShiftHandover,
     Size,
     Texture,
     Thickness,
     Ticket,
+    TicketCorrection,
     TicketEvent,
     TicketMaterial,
+    TicketPendingWindow,
     Unit,
     User,
+    UserAccessArea,
     utcnow,
 )
 from .security import hash_pin, issue_qr_short_code, issue_qr_token
@@ -262,15 +276,30 @@ SHIFTS = [
 # Two levels now, not ten: `app` is everyone on the floor, `dashboard` is the
 # handful who also get the board, the import and the master lists. Several
 # people hold `dashboard` on purpose — it was never meant to be one person.
+# employee_id, name, access areas, pin.
+#
+# Deliberately not everybody-gets-everything. The point of six combinable areas
+# (V5 §3) is that a real plant has people who hold two of them and people who
+# hold one, and a demo where every account can do everything demonstrates
+# nothing about the access model. So:
+#
+#   Anita     admin + dashboard   — sets the plant up, reads the board
+#   Vikram    manager + dashboard — reads the board, reopens, reassigns
+#   Priya     supervisor          — notified and can reopen; NO dashboard,
+#                                   which is the combination that catches a
+#                                   screen wrongly assuming the two go together
+#   Imran     maintenance         — works tickets, logs no production
+#   Sunita    hpl_production      — logs production, raises tickets, works none
+#   Ramesh    maintenance + hpl_production — both jobs, one account
+#   Farida    hpl_production
 USERS = [
-    # employee_id, name, role, pin
-    ("EMP001", "Anita Rao", "dashboard", "481920"),
-    ("EMP002", "Vikram Shetty", "dashboard", "573014"),
-    ("EMP003", "Priya Nair", "dashboard", "628351"),
-    ("EMP004", "Imran Sheikh", "app", "746092"),
-    ("EMP005", "Sunita Devi", "app", "819473"),
-    ("EMP006", "Ramesh Yadav", "app", "354871"),
-    ("EMP007", "Farida Begum", "app", "913460"),
+    ("EMP001", "Anita Rao", ("admin", "dashboard"), "481920"),
+    ("EMP002", "Vikram Shetty", ("manager", "dashboard"), "573014"),
+    ("EMP003", "Priya Nair", ("supervisor",), "628351"),
+    ("EMP004", "Imran Sheikh", ("maintenance",), "746092"),
+    ("EMP005", "Sunita Devi", ("hpl_production",), "819473"),
+    ("EMP006", "Ramesh Yadav", ("maintenance", "hpl_production"), "354871"),
+    ("EMP007", "Farida Begum", ("hpl_production",), "913460"),
 ]
 
 # Delete order matters: children before parents, or the foreign keys refuse.
@@ -282,17 +311,32 @@ USERS = [
 # tried to delete `users` while an import run still pointed at the uploader.
 # The failure is loud, which is the only reason it was cheap.
 SEEDED_TABLES = (
-    # ProductionLog points at ImpregnationLog, which points at the paper
-    # masters, which point at units — so the whole chain unwinds in that order.
+    # Corrections point at the records they amended, so they unwind first.
+    ProductionCorrection,
+    TicketCorrection,
+    # ProductionLog points at ImpregnationLog, which points at ResinBatch and
+    # at the paper masters, which point at units — the whole chain unwinds in
+    # that order.
     ProductionLog,
-    ImpregnationLog,
+    Attachment,
+    TicketPendingWindow,
     TicketMaterial,
     TicketEvent,
     Ticket,
     ImpregnationLog,
+    ResinBatch,
+    PmCompletion,
+    PmSchedule,
+    QrScan,
+    ShiftHandover,
+    ReviewRun,
+    ExportRun,
     ImportRun,
+    AuditLog,
     RefreshToken,
     Device,
+    UserAccessArea,
+    PlantSetting,
     Design,
     Texture,
     Thickness,
@@ -465,18 +509,22 @@ def seed(session: Session, with_history: bool = True) -> None:
         )
     session.commit()
 
-    for employee_id, name, role, pin in USERS:
+    for employee_id, name, areas, pin in USERS:
         user = User(
             plant_id=plant.id,
             unit_id=unit.id,
             employee_id=employee_id,
             name=name,
-            role=role,
             pin_hash=hash_pin(employee_id, pin),
+            # Seeded accounts are approved by construction — somebody set them
+            # up. The approval queue is for people who sign themselves up.
+            approved_at=utcnow(),
         )
         session.add(user)
         session.commit()
         session.refresh(user)
+        for area in areas:
+            session.add(UserAccessArea(user_id=user.id, area=area))
 
     session.commit()
 
@@ -502,8 +550,8 @@ def seed(session: Session, with_history: bool = True) -> None:
         f"{len(REJECT_REASONS)} reject reasons"
     )
     print("\nSign in with (development PINs — do not use these anywhere real):")
-    for employee_id, name, role, pin in USERS:
-        print(f"  {employee_id}  {pin}   {name:<16} {role}")
+    for employee_id, name, areas, pin in USERS:
+        print(f"  {employee_id}  {pin}   {name:<16} {', '.join(areas)}")
     print("\nStill missing — these are answers from the plant, not from a seed script.")
     print("The first three now have a screen: sign in as a dashboard user and open Setup.")
     print("  - hourly_downtime_cost per machine  (spec §12.1 Q7 — no rupee figure until set)")

@@ -221,4 +221,4 @@ class TestScopeHelper:
             id: int | None = Field(default=None, primary_key=True)
 
         with pytest.raises(TypeError, match="plant_id"):
-            scope(Rogue, Principal(user_id=1, role="admin", plant_id=1, unit_id=1))
+            scope(Rogue, Principal(user_id=1, areas=frozenset({"admin"}), plant_id=1, unit_id=1))

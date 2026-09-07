@@ -63,8 +63,16 @@
       "lockedSoft": "Bahut baar koshish hui. {{seconds}} second baad dobara karein.",
       "lockedHard": "Yeh account lock hai. Apne supervisor se khulwayein.",
       "offline": "Connection nahi hai. Ek baar online rehte hue sign in karein, uske baad app bina net bhi chalta rahega.",
-      "unknown": "Kuch gadbad hui. Dobara koshish karein."
-    }
+      "unknown": "Kuch gadbad hui. Dobara koshish karein.",
+      "missingName": "Apna naam daalein.",
+      "idTaken": "Yeh employee ID pehle se darj hai. Sign in karein, ya admin se poochhein.",
+      "weakPin": "Koi aur PIN chunein — 111111 jaisa dohrav ya 123456 jaisa kram nahi."
+    },
+    "name": "Aapka naam",
+    "nameHint": "Jaisa aapke uthaye ticket par dikhna chahiye.",
+    "needAccount": "Mera khata abhi nahi hai",
+    "haveAccount": "Mera khata pehle se hai",
+    "signUpSubmit": "Mera khata banayein"
   },
   "floor": {
     "title": "Floor",
@@ -569,7 +577,9 @@
     "maintenance": "Maintenance",
     "maintenanceDetail": "Kharabi darj karein, ya us par kaam karein",
     "production": "Production",
-    "productionDetail": "Is shift mein machine ne kya banaya, darj karein"
+    "productionDetail": "Is shift mein machine ne kya banaya, darj karein",
+    "subtitleOne": "Yeh raha jo aap darj kar sakte hain.",
+    "maintenanceDetailRaiseOnly": "Ruki hui machine ki khabar dein"
   },
   "resin": {
     "title": "Resin batch — {{machine}}",
@@ -622,5 +632,35 @@
     "empty": "Abhi kuch darj nahi hua.",
     "counts": "{{produced}} bani · {{rejected}} reject",
     "correct": "Yeh entry sudharein"
+  },
+  "noAccess": {
+    "pendingTitle": "Shukriya, {{name}} — aap qatar mein hain",
+    "pendingBody": "Aapka khata ban gaya hai. Shuru karne se pehle admin ko yeh chunna hoga ki aap kya-kya dekh sakte hain.",
+    "revokedTitle": "Aapki pahunch hata di gayi hai",
+    "revokedBody": "Khata ab bhi hai, par usme kuch bhi chalu nahi hai. Agar yeh galat lage to admin se poochhein.",
+    "hint": "App band kar sakte hain. Setup ho jaane ki khabar milne par dobara sign in karein."
+  },
+  "access": {
+    "nav": "Pahunch",
+    "title": "Kise andar aana hai, aur kya-kya dikhega",
+    "subtitle": "Jo hisse lagu hon woh chalu karein. Ek vyakti ek, kai ya chheon rakh sakta hai.",
+    "waiting": "Manzoori ka intezaar ({{count}})",
+    "noneWaiting": "Koi intezaar mein nahi hai.",
+    "signedUp": "{{id}} · {{when}} ko sign up kiya",
+    "everyone": "Baaki sab",
+    "approve": "Manzoori dein",
+    "save": "Badlav save karein",
+    "saving": "Save ho raha hai…",
+    "failed": "Save nahi ho saka. Dobara koshish karein.",
+    "areasLegend": "Pahunch ke hisse",
+    "revokeWarning": "Kuch bhi chune bina save karne par {{name}} ki poori pahunch hat jayegi.",
+    "areas": {
+      "hpl_production": "HPL Production",
+      "maintenance": "Maintenance",
+      "supervisor": "Supervisor",
+      "manager": "Manager",
+      "dashboard": "Dashboard",
+      "admin": "Admin"
+    }
   }
 }

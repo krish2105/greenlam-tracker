@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 
 from .config import get_settings
 from .routers import (
+    access,
     auth,
     corrections,
     exports,
@@ -87,6 +88,7 @@ async def unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
 
 
 app.include_router(health.router)
+app.include_router(access.router)
 # Before tickets and production: both /correct paths sit under those prefixes,
 # and a router registered later would be shadowed by their catch-all routes.
 app.include_router(corrections.router)

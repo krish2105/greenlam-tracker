@@ -123,13 +123,21 @@ def new_jti() -> str:
 
 
 def create_access_token(
-    *, user_id: int, role: str, plant_id: int, unit_id: int | None
+    *, user_id: int, plant_id: int, unit_id: int | None
 ) -> tuple[str, datetime]:
+    """Identity only. Deliberately carries no authorisation claim.
+
+    It used to carry `role`, which nothing ever read — `deps.get_principal`
+    loads access from the database on every request precisely so that revoking
+    somebody bites immediately rather than whenever their token expires. A
+    claim that is never consulted is worse than none: the next person to need
+    the caller's permissions finds one sitting right there in the payload, and
+    reads a value that could be thirty minutes stale.
+    """
     expires = _now() + timedelta(minutes=_settings.access_token_minutes)
     payload = {
         "sub": str(user_id),
         "typ": "access",
-        "role": role,
         "plant_id": plant_id,
         "unit_id": unit_id,
         "iat": int(_now().timestamp()),

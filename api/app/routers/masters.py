@@ -28,6 +28,7 @@ from ..models import (
     Thickness,
     Unit,
     User,
+    UserAccessArea,
     utcnow,
 )
 from ..schemas import (
@@ -51,6 +52,7 @@ from ..schemas import (
 )
 from ..security import hash_pin, issue_qr_short_code, issue_qr_token, validate_pin_format
 from ..tenancy import assert_visible, scope
+from ..user_read import user_read
 
 router = APIRouter(prefix="/masters", tags=["masters"])
 settings = get_settings()
@@ -356,7 +358,7 @@ def list_users(principal: CanEditMasters, session: SessionDep) -> list[UserRead]
     and the list is the input to any future individual-metrics view — which
     §4.1 of the addendum is emphatic about keeping off peer-visible screens."""
     stmt = scope(User, principal).order_by(User.name)
-    return [UserRead.model_validate(r) for r in session.exec(stmt).all()]
+    return [user_read(session, r) for r in session.exec(stmt).all()]
 
 
 @router.post(
@@ -382,12 +384,20 @@ def create_user(body: UserWrite, principal: CanManageUsers, session: SessionDep)
         plant_id=principal.home_plant_id,
         unit_id=body.unit_id if body.unit_id is not None else principal.home_unit_id,
         pin_hash=hash_pin(body.employee_id, body.pin),
-        **body.model_dump(exclude={"pin", "unit_id"}),
+        # An admin creating somebody has, by that act, approved them. The queue
+        # in V5 §3 is for people who signed themselves up.
+        approved_at=utcnow(),
+        approved_by=principal.user_id,
+        **body.model_dump(exclude={"pin", "unit_id", "areas"}),
     )
     session.add(row)
     session.commit()
     session.refresh(row)
-    return UserRead.model_validate(row)
+
+    for area in body.areas:
+        session.add(UserAccessArea(user_id=row.id, area=area, granted_by=principal.user_id))
+    session.commit()
+    return user_read(session, row)
 
 
 # ---------------------------------------------------------------------------

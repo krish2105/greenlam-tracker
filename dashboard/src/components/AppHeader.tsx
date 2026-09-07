@@ -13,6 +13,7 @@ interface AppHeaderProps {
   showBoard: boolean;
   /** Manager and above. Importing rewrites history for the whole plant. */
   showImport: boolean;
+  showAccess: boolean;
   onSignOut: () => void;
 }
 
@@ -30,6 +31,7 @@ export function AppHeader({
   showFloor,
   showBoard,
   showImport,
+  showAccess,
   onSignOut,
 }: AppHeaderProps) {
   const { t } = useTranslation();
@@ -89,6 +91,7 @@ export function AppHeader({
           {showImport && <HeaderLink to="/import">{t('imports.nav')}</HeaderLink>}
           {showImport && <HeaderLink to="/masters">{t('masters.nav')}</HeaderLink>}
           {showImport && <HeaderLink to="/setup">{t('setup.nav')}</HeaderLink>}
+          {showAccess && <HeaderLink to="/access">{t('access.nav')}</HeaderLink>}
         </nav>
 
         <LanguageToggle />

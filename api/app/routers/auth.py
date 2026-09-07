@@ -28,6 +28,7 @@ from ..security import (
     next_lock_state,
     verify_pin,
 )
+from ..user_read import user_read
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
@@ -81,7 +82,7 @@ def _issue_session(
 ) -> tuple[TokenResponse, str]:
     """Returns the response body and the jti of the refresh token just issued."""
     access, access_expires = create_access_token(
-        user_id=user.id, role=user.role, plant_id=user.plant_id, unit_id=user.unit_id
+        user_id=user.id, plant_id=user.plant_id, unit_id=user.unit_id
     )
     jti = new_jti()
     family = family_id or new_jti()
@@ -101,7 +102,7 @@ def _issue_session(
     body = TokenResponse(
         access_token=access,
         expires_at=access_expires,
-        user=UserRead.model_validate(user),
+        user=user_read(session, user),
     )
     return body, jti
 
@@ -265,8 +266,8 @@ def logout(request: Request, response: Response, session: SessionDep) -> Respons
 
 
 @router.get("/me", response_model=UserRead, summary="The signed-in user")
-def me(user: CurrentUser) -> UserRead:
-    return UserRead.model_validate(user)
+def me(user: CurrentUser, session: SessionDep) -> UserRead:
+    return user_read(session, user)
 
 
 @router.patch("/me/preferences", response_model=UserRead, summary="Save language and theme")
@@ -279,7 +280,7 @@ def update_preferences(body: PreferencesUpdate, user: CurrentUser, session: Sess
     session.add(user)
     session.commit()
     session.refresh(user)
-    return UserRead.model_validate(user)
+    return user_read(session, user)
 
 
 @router.post(
@@ -308,4 +309,4 @@ def unlock_user(
     session.add(target)
     session.commit()
     session.refresh(target)
-    return UserRead.model_validate(target)
+    return user_read(session, target)

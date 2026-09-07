@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from pydantic import Field as PField
 from sqlmodel import select
 
-from ..deps import CanRaise, Operational, PrincipalDep, SessionDep
+from ..deps import CanLogProduction, Operational, PrincipalDep, SessionDep
 from ..models import (
     ImpregnationLog,
     Machine,
@@ -70,7 +70,7 @@ CORRELATION_HOURS = 48
     summary="Log production for a shift",
 )
 def log_production(
-    body: ProductionCreate, principal: CanRaise, session: SessionDep
+    body: ProductionCreate, principal: CanLogProduction, session: SessionDep
 ) -> ProductionRead:
     """One row per machine per shift per product.
 
@@ -601,7 +601,7 @@ class ResinBatchRead(BaseModel):
     summary="Record a resin batch",
 )
 def log_resin_batch(
-    body: ResinBatchCreate, principal: CanRaise, session: SessionDep
+    body: ResinBatchCreate, principal: CanLogProduction, session: SessionDep
 ) -> ResinBatchRead:
     machine = session.get(Machine, body.machine_id)
     if machine is None:

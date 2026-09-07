@@ -8,9 +8,9 @@ only reliable way to guarantee that.
 from datetime import date, datetime, time
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-from .roles import ROLES
+from .roles import AREAS
 
 
 # ---------------------------------------------------------------------------
@@ -37,7 +37,11 @@ class UserRead(BaseModel):
     id: int
     employee_id: str
     name: str
-    role: str
+    # Every area held. Empty means the account can sign in and do nothing —
+    # either it is waiting in the approval queue, or its access was revoked.
+    # `approved_at` is what tells those two apart.
+    areas: list[str] = []
+    approved_at: datetime | None = None
     plant_id: int
     unit_id: int | None
     section_id: int | None
@@ -196,6 +200,13 @@ class VocabWrite(BaseModel):
 
 
 class UserWrite(BaseModel):
+    """Creating a user directly, which only an admin can do.
+
+    The self-signup path (`POST /auth/signup`) is separate and grants nothing —
+    see V5 §3. This one exists so an admin can set somebody up complete with
+    their areas rather than creating them and then approving them.
+    """
+
     employee_id: str = Field(min_length=1, max_length=40)
     name: str = Field(min_length=1, max_length=160)
     # Derived from roles.py, never written out again. The literal that used to
@@ -204,12 +215,25 @@ class UserWrite(BaseModel):
     # reject with a CHECK violation, and refused one that was valid. A
     # vocabulary duplicated in a regex drifts silently; one built from the
     # source cannot.
-    role: str = Field(pattern=rf"^({'|'.join(ROLES)})$")
+    #
+    # A list now, and it may be empty: an account created with no areas is a
+    # real thing to want — somebody set up in advance of their first shift.
+    areas: list[str] = Field(default_factory=list)
     pin: str = Field(min_length=6, max_length=6)
     phone: str | None = Field(default=None, max_length=20)
     section_id: int | None = None
     unit_id: int | None = None
     preferred_language: str = Field(default="en", pattern=r"^(en|hi|hi-Latn)$")
+
+    @field_validator("areas")
+    @classmethod
+    def _known_areas(cls, v: list[str]) -> list[str]:
+        unknown = sorted(set(v) - set(AREAS))
+        if unknown:
+            raise ValueError(f"Unknown access area(s): {', '.join(unknown)}")
+        # Deduplicated here as well as by the unique index, so the error a
+        # caller gets is a clear one rather than an integrity violation.
+        return sorted(set(v))
 
 
 class HealthResponse(BaseModel):

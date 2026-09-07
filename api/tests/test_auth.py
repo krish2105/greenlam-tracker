@@ -1,4 +1,4 @@
-"""Auth: login, lockout, rotation, reuse detection, role gates.
+"""Auth: login, lockout, rotation, reuse detection, access-area gates.
 
 The lockout and reuse-detection tests are the ones that matter. A 6-digit PIN
 is only defensible if the backoff actually engages, and refresh rotation is
@@ -47,7 +47,7 @@ class TestLogin:
         body = r.json()
         assert body["access_token"]
         assert body["user"]["employee_id"] == employee_id
-        assert body["user"]["role"] == "app"
+        assert set(body["user"]["areas"]) == {"hpl_production", "maintenance"}
         # The refresh token must never be in the body.
         assert "refresh_token" not in body
         assert "gmt_refresh" in r.cookies
@@ -188,7 +188,7 @@ class TestMeAndPreferences:
     def test_me_returns_the_user(self, client: TestClient, plant_fixture, auth_headers):
         r = client.get("/auth/me", headers=auth_headers("technician"))
         assert r.status_code == 200
-        assert r.json()["role"] == "app"
+        assert set(r.json()["areas"]) == {"hpl_production", "maintenance"}
 
     def test_theme_and_language_persist(self, client: TestClient, plant_fixture, auth_headers):
         headers = auth_headers("operator")

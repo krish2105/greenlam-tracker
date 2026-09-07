@@ -2,7 +2,7 @@
 shared metadata, which is what Alembic's env.py autogenerate compares against.
 """
 
-from ..roles import ROLES
+from ..roles import AREAS
 from .base import PlantScoped, Timestamped, utcnow
 from .corrections import ProductionCorrection, TicketCorrection
 from .maintenance import (
@@ -50,7 +50,7 @@ from .org import (
     Shift,
     Unit,
 )
-from .people import AuditLog, Device, RefreshToken, User
+from .people import AuditLog, Device, RefreshToken, User, UserAccessArea
 from .production import ImpregnationLog, ProductionLog, ResinBatch
 
 __all__ = [
@@ -68,6 +68,7 @@ __all__ = [
     "QrScan",
     # people
     "User",
+    "UserAccessArea",
     "Device",
     "RefreshToken",
     "AuditLog",
@@ -99,7 +100,7 @@ __all__ = [
     "PlantScoped",
     "Timestamped",
     "utcnow",
-    "ROLES",
+    "AREAS",
     "STAGES",
     "PRIORITIES",
     "DOWNTIME_TYPES",

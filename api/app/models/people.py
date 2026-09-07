@@ -1,4 +1,4 @@
-"""Users, devices and refresh-token families.
+"""Users, devices, access areas and refresh-token families.
 
 Auth is employee ID + 6-digit PIN because operators do not reliably have work
 email addresses (spec §4.2). That choice puts the whole security burden on
@@ -28,7 +28,18 @@ class User(PlantScoped, Timestamped, table=True):
     section_id: int | None = Field(default=None, foreign_key="sections.id", index=True)
 
     pin_hash: str = Field(max_length=255)
-    role: str = Field(max_length=20, index=True)
+
+    # Access lives in `user_access_areas`, one row per area held (V5 §3). The
+    # `role` column it replaced is dropped in migration 0014, not left unread:
+    # a column nothing consults still looks like it means something, and what
+    # it would appear to mean is the one thing it no longer decides.
+    #
+    # Approval is a SEPARATE fact from access. A new signup and an account
+    # whose areas were all revoked both hold none, and they are opposite
+    # situations — one is waiting for somebody to look at it, the other has
+    # been looked at and deliberately emptied.
+    approved_at: datetime | None = Field(default=None, sa_type=utc_ts())
+    approved_by: int | None = Field(default=None, foreign_key="users.id")
 
     # Preferences follow the person to whichever shared tablet they log into.
     # Cleared from the device on logout so the next user does not inherit them.
@@ -96,3 +107,24 @@ class AuditLog(SQLModel, table=True):
     after: dict | None = Field(default=None, sa_column=Column("after", JSONB, nullable=True))
     ip: str | None = Field(default=None, max_length=64)
     created_at: datetime = Field(default_factory=utcnow, index=True, sa_type=utc_ts())
+
+
+class UserAccessArea(SQLModel, table=True):
+    """One area a person holds. Six possible, any combination (V5 §3).
+
+    Rows rather than six boolean columns on `users`: granting is an INSERT,
+    revoking is a DELETE, and a seventh area one day is a row rather than a
+    migration plus a model change plus a frontend deploy. The join costs one
+    indexed lookup on a table with at most six rows per person.
+
+    `granted_by` is nullable because the very first admin has nobody above them
+    to have granted it — see migration 0014.
+    """
+
+    __tablename__ = "user_access_areas"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    area: str = Field(max_length=32)  # unique per user, see the migration
+    granted_at: datetime = Field(default_factory=utcnow, sa_type=utc_ts())
+    granted_by: int | None = Field(default=None, foreign_key="users.id")

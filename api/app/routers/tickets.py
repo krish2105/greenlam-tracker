@@ -836,9 +836,13 @@ def append_event(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not found")
     assert_visible(ticket, principal)
 
-    # Closing is a separate capability from working: whoever fixed it should
-    # not be the one who signs off that it is fixed.
-    needed = "verify_close" if body.type in {"CLOSED", "REOPENED"} else "work_ticket"
+    # V5 §5.4 settles both halves of what `verify_close` used to gate. Every
+    # ticket is self-closed by the person who solved it, with no approval step,
+    # so closing is part of working it. Reopening is deliberately wider —
+    # Maintenance, Supervisor, Manager and Admin all hold it, because the only
+    # real safety net against a premature close is somebody noticing the
+    # machine is still broken.
+    needed = "reopen_ticket" if body.type == "REOPENED" else "work_ticket"
     if not principal.can(needed):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, detail="Your role does not have access to this."
