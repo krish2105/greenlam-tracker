@@ -122,3 +122,41 @@ class TestTheRollHasNoLoad:
         from app.models import ImpregnationLog
 
         assert "load_no" not in ImpregnationLog.model_fields
+
+
+class TestAnAdminCanSetTheForm:
+    """Absent from `MachineWrite` until now, so every machine an admin added —
+    including a new press — silently landed on the general sheet-count form and
+    its operator was shown fields for a job the machine does not do."""
+
+    def test_a_new_machine_keeps_the_form_it_was_given(
+        self, client: TestClient, plant_fixture, auth_headers
+    ):
+        r = client.post(
+            "/masters/machines",
+            json={
+                "section_id": plant_fixture["section"].id,
+                "code": "AC Room-9",
+                "name": "AC Room 9",
+                "production_form": "ac_room",
+            },
+            headers=auth_headers("admin"),
+        )
+        assert r.status_code == 201, r.text
+        assert r.json()["production_form"] == "ac_room"
+
+    def test_an_unknown_form_is_refused_here_rather_than_by_the_database(
+        self, client: TestClient, plant_fixture, auth_headers
+    ):
+        r = client.post(
+            "/masters/machines",
+            json={
+                "section_id": plant_fixture["section"].id,
+                "code": "Odd-1",
+                "name": "Odd machine",
+                "production_form": "kiln",
+            },
+            headers=auth_headers("admin"),
+        )
+        # 422, not the 500 a CHECK violation would produce.
+        assert r.status_code == 422

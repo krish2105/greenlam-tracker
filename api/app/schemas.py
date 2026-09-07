@@ -177,6 +177,17 @@ class MachineWrite(BaseModel):
     model: str | None = Field(default=None, max_length=120)
     install_date: date | None = None
     criticality: str = Field(default="B", pattern=r"^[ABC]$")
+    # Which production form this machine gets (V5 §6.2). Absent from this
+    # schema until now, which meant every machine an admin added — including a
+    # new press — silently landed on the general sheet-count form, and its
+    # operator was shown fields for a job the machine does not do.
+    #
+    # The pattern mirrors the database CHECK from migrations 0008 and 0011. A
+    # value that passes here and fails there would be a 500 on the admin's
+    # first attempt.
+    production_form: str = Field(
+        default="general", pattern=r"^(press|resin|impregnation|ac_room|general)$"
+    )
     hourly_downtime_cost: float | None = Field(default=None, ge=0)
     is_active: bool = True
 
