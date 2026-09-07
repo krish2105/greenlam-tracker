@@ -1248,3 +1248,33 @@ export function setUserAreas(userId: number, areas: string[]): Promise<ApiUser> 
     body: JSON.stringify({ areas }),
   });
 }
+
+
+// ---------------------------------------------------------------------------
+// Push notifications (V5 §9)
+// ---------------------------------------------------------------------------
+
+export interface PushStatus {
+  /** Empty when the plant has not generated VAPID keys. */
+  public_key: string;
+  enabled: boolean;
+  /** How many devices of this person currently hold a live subscription. */
+  devices: number;
+}
+
+export interface PushSubscriptionBody {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+export function pushStatus(): Promise<PushStatus> {
+  return request<PushStatus>('/push/status');
+}
+
+export function subscribeToPush(body: PushSubscriptionBody): Promise<unknown> {
+  return request('/push/subscribe', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function unsubscribeFromPush(body: PushSubscriptionBody): Promise<unknown> {
+  return request('/push/subscribe', { method: 'DELETE', body: JSON.stringify(body) });
+}

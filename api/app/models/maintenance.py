@@ -181,6 +181,18 @@ class Ticket(PlantScoped, Timestamped, table=True):
     last_edited_at: datetime | None = Field(default=None, sa_type=utc_ts())
     last_edited_by: int | None = Field(default=None, foreign_key="users.id")
 
+    # --- Watched by the scheduled worker (V5 §5.7) -----------------------
+    #
+    # Set once, when the no-follow-up-production flag is first raised. A worker
+    # running every half hour would otherwise send the same alert forty-eight
+    # times a day about a repair nobody has looked at yet.
+    no_follow_up_flagged_at: datetime | None = Field(default=None, sa_type=utc_ts())
+    # The earlier ticket this one repeats, when it landed on the same machine
+    # inside the repeat-failure window. A column rather than a re-derived
+    # guess, because V5 §15.4 keeps Reopened and Repeat-Failure as separate
+    # counts and a count you recompute differently each time is not a count.
+    repeats_ticket_id: UUID | None = Field(default=None, foreign_key="tickets.id")
+
     reopened_by: int | None = Field(default=None, foreign_key="users.id")
     # Required by the spec: a reopen asserts the previous fix did not hold, and
     # that claim needs a sentence attached to it.

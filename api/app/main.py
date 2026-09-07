@@ -24,6 +24,7 @@ from .routers import (
     masters,
     people,
     production,
+    push,
     qr,
     tickets,
 )
@@ -98,6 +99,7 @@ app.include_router(masters.router)
 app.include_router(tickets.router)
 app.include_router(people.router)
 app.include_router(production.router)
+app.include_router(push.router)
 app.include_router(qr.router)
 app.include_router(imports.router)
 app.include_router(impregnation.router)

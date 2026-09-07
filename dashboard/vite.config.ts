@@ -27,7 +27,7 @@ export default defineConfig({
      */
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png'],
+      includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png', 'push-sw.js'],
       manifest: {
         name: 'Greenlam Tracker',
         short_name: 'Greenlam',
@@ -55,6 +55,11 @@ export default defineConfig({
         // confidence, and the outbox already owns offline writes.
         navigateFallbackDenylist: [/^\/api\//],
         globPatterns: ['**/*.{js,css,html,woff2,png,svg}'],
+        // Push handling, added to the generated worker rather than replacing
+        // it. Switching to injectManifest for one event handler would mean
+        // owning the precache, the navigation fallback and the update strategy
+        // by hand — four things that currently work.
+        importScripts: ['/push-sw.js'],
         // The Devanagari cut alone is ~80 KB; the default 2 MB cap would drop
         // the fonts and Hindi would render as boxes offline.
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,

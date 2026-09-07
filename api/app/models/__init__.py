@@ -28,6 +28,7 @@ from .masters import (
     Thickness,
     spec_breaches,
 )
+from .notify import PushSubscription
 from .ops import (
     REVIEW_TYPES,
     RUN_STATUSES,
@@ -56,6 +57,7 @@ from .production import ImpregnationLog, ProductionLog, ResinBatch
 __all__ = [
     # org
     "Plant",
+    "PushSubscription",
     "ProductionCorrection",
     "TicketCorrection",
     "PlantSetting",

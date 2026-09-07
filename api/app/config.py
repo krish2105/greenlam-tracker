@@ -40,6 +40,21 @@ class Settings(BaseSettings):
     pin_backoff_cap_seconds: int = 300
     pin_hard_lock_after: int = 10  # supervisor or admin must unlock
 
+    # ---- Web Push (VAPID) -----------------------------------------------
+    #
+    # Empty by default, and that is a working configuration: with no keys the
+    # app runs and simply never sends a notification. A plant that has not
+    # generated keys yet should still be able to raise and work tickets.
+    #
+    # Generate with:  python -m app.vapid
+    # The PRIVATE key is a secret. The public one is handed to every browser
+    # that subscribes, so it is not.
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    # Contactable address for the push service to reach the sender. Mozilla and
+    # FCM both expect one; a mailto: is what the spec suggests.
+    vapid_subject: str = "mailto:maintenance@greenlam.example"
+
     # ---- Exports --------------------------------------------------------
     # Where the nightly workbook LANDS. The API only ever reads from here; it
     # never builds a workbook, because Render free is 512 MB / 0.1 CPU and

@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func
 from sqlmodel import select
 
-from .. import analytics, classify, lifecycle
+from .. import analytics, classify, lifecycle, notify, worker
 from ..deps import (
     CanRaise,
     Operational,
@@ -275,8 +275,33 @@ def raise_ticket(body: TicketCreate, principal: CanRaise, session: SessionDep) -
             client_ts=raised_at,
         )
     )
+    # Does this repeat something on the same machine that was only just fixed?
+    #
+    # Linked at raise time rather than found later by the worker: the SOP says
+    # a recurrence inside the window should have been a Reopen, so knowing it
+    # is a repeat is most useful at the moment somebody is about to work it.
+    ticket.repeats_ticket_id = worker.find_repeat(session, ticket)
+
     session.commit()
     session.refresh(ticket)
+
+    # After the commit, and unable to fail the request. Somebody reporting a
+    # stopped press is doing the most important thing this system supports; a
+    # push service having a bad afternoon is not a reason to refuse it.
+    notify.ticket_raised(
+        session,
+        machine_code=machine.code,
+        description=ticket.description,
+        by=principal.user_id,
+    )
+    if ticket.repeats_ticket_id is not None:
+        notify.ticket_flagged(
+            session,
+            machine_code=machine.code,
+            reason="Down again soon after the last repair.",
+            by=principal.user_id,
+        )
+    session.commit()
 
     raiser = session.get(User, principal.user_id)
     return _to_read(ticket, machine, section, raiser.name, 1, now)

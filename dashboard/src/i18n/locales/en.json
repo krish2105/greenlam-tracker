@@ -662,5 +662,21 @@
       "dashboard": "Dashboard",
       "admin": "Admin"
     }
+  },
+  "notify": {
+    "title": "Alerts on this phone",
+    "onBody": "This phone buzzes when a machine goes down.",
+    "offBody": "Get told the moment a machine goes down.",
+    "turnOn": "Turn on alerts",
+    "turnOff": "Turn off alerts",
+    "working": "Just a moment…",
+    "declined": "No problem — you can turn these on later.",
+    "failed": "Could not set that up. Try again.",
+    "blocked": "Notifications are blocked for this site. Turn them back on in your phone's settings for this app.",
+    "iosTitle": "Add this to your Home Screen first",
+    "iosBody": "On iPhone, alerts only work once the app is on your Home Screen. It takes ten seconds.",
+    "iosStep1": "Tap the Share button at the bottom of Safari.",
+    "iosStep2": "Choose “Add to Home Screen”.",
+    "iosStep3": "Open it from there, and turn on alerts."
   }
 }

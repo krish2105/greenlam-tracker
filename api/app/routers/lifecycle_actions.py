@@ -24,8 +24,9 @@ from pydantic import Field as PField
 from sqlalchemy import update
 from sqlmodel import select
 
+from .. import notify
 from ..deps import PrincipalDep, SessionDep
-from ..models import Ticket, TicketEvent, TicketPendingWindow, User
+from ..models import Machine, Ticket, TicketEvent, TicketPendingWindow, User
 from ..models.base import utcnow
 from ..models.maintenance import PENDING_KINDS
 from ..tenancy import assert_visible
@@ -326,6 +327,16 @@ def reopen(ticket_id: UUID, body: ReopenIn, principal: PrincipalDep, session: Se
         {"_event_id": body.submission_id or uuid4(), "reason": ticket.reopen_reason},
     )
     session.commit()
+
+    machine = session.get(Machine, ticket.machine_id)
+    notify.ticket_reopened(
+        session,
+        machine_code=machine.code if machine else "—",
+        reason=ticket.reopen_reason or "",
+        by=principal.user_id,
+    )
+    session.commit()
+
     return {
         "ok": True,
         "reopened_by": _name(session, principal.user_id),

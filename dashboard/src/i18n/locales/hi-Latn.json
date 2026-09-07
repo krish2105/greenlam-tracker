@@ -662,5 +662,21 @@
       "dashboard": "Dashboard",
       "admin": "Admin"
     }
+  },
+  "notify": {
+    "title": "Is phone par alert",
+    "onBody": "Machine band hote hi yeh phone bajega.",
+    "offBody": "Machine band hote hi khabar payein.",
+    "turnOn": "Alert chalu karein",
+    "turnOff": "Alert band karein",
+    "working": "Ek pal…",
+    "declined": "Koi baat nahi — baad mein chalu kar sakte hain.",
+    "failed": "Set nahi ho saka. Dobara koshish karein.",
+    "blocked": "Is site ke liye notification block hain. Phone ki setting mein jaakar chalu karein.",
+    "iosTitle": "Pehle ise home screen par lagayein",
+    "iosBody": "iPhone par alert tabhi aate hain jab app home screen par ho. Das second ka kaam hai.",
+    "iosStep1": "Safari mein neeche share button dabayein.",
+    "iosStep2": "“Add to Home Screen” chunein.",
+    "iosStep3": "Wahin se kholein, aur alert chalu karein."
   }
 }

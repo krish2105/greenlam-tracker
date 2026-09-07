@@ -1,0 +1,64 @@
+name: Closure integrity checks
+
+# Every thirty minutes. V5 §12 asks for 15-30; the slower end because the thing
+# being watched — "has this machine produced anything since it was repaired" —
+# changes on the timescale of a shift, not a coffee break, and GitHub's
+# scheduler is best-effort anyway.
+#
+# WHY NOT ON RENDER
+#
+# Render's free tier has no cron and sleeps after fifteen minutes idle. A
+# long-lived worker there is a moving part that stops without telling anybody,
+# and a stalled integrity check leaves the dashboard looking calm while a
+# machine that was never really fixed sits there. The scheduler that already
+# runs the nightly export runs this too.
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+# Never two at once. A slow run overlapping the next one would double every
+# notification, and this job's whole purpose is to be believed.
+concurrency:
+  group: integrity-checks
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: No-follow-up production
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install
+        working-directory: api
+        run: pip install -e .
+
+      - name: Run the checks
+        working-directory: api
+        env:
+          # Writes flags and sends notifications, so unlike the export job this
+          # one needs the read-write connection string and the VAPID secret.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+        run: python -m app.worker
+
+  # A worker that quietly stopped is worse than one that never ran: the flags
+  # simply never appear and everyone assumes there is nothing to flag.
+  alert:
+    needs: check
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Say so loudly
+        run: |
+          echo "::error::The closure-integrity worker failed. No-follow-up"
+          echo "::error::flags are NOT being raised until this is fixed."

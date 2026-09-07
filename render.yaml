@@ -63,6 +63,19 @@ services:
         # not "clean it up" here or in the rewrite destination below: this
         # value only breaks QR codes, but that rewrite breaks sign-in.
         value: https://greenlam-tracker-web-l80w.onrender.com
+      - key: VAPID_PUBLIC_KEY
+        # Handed to every browser that subscribes, so not a secret. Set in the
+        # dashboard rather than written here only because it is one half of a
+        # pair and splitting them across two places invites the mismatch that
+        # produces subscriptions nothing can ever push to.
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        # A secret. Never in this file, never in the repository.
+        sync: false
+      - key: VAPID_SUBJECT
+        # Where a push service reaches the sender if something is wrong. Both
+        # FCM and Mozilla expect one.
+        sync: false
       - key: ALLOW_REMOTE_SEED
         # TRUE ONLY BECAUSE THIS IS THE SYNTHETIC DEMO. The seed refuses to
         # touch a non-local database unless this is set, which is the guard

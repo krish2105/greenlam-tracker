@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { formatDuration } from '@greenlam/core';
 
 import * as api from '../../lib/api';
+import { NotificationCard } from '../NotificationCard';
 import { ExceptionCard } from '../ExceptionCard';
 import { PerformancePanel } from '../PerformancePanel';
 import { LogProductionSheet } from './LogProductionSheet';
@@ -150,6 +151,11 @@ export function FloorView({ user, canRaise, canSeeTeam }: FloorViewProps) {
           </ul>
         )}
       </section>
+
+      {/* Below the work, above nothing. Somebody opens this screen to deal
+          with a breakdown; turning on alerts is what they do once, on the day
+          they are set up, and then never again. */}
+      <NotificationCard />
 
       <PerformancePanel canSeeTeam={canSeeTeam} />
 
