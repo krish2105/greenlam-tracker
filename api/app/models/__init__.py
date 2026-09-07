@@ -16,6 +16,7 @@ from .maintenance import (
     Ticket,
     TicketEvent,
     TicketMaterial,
+    TicketPendingWindow,
 )
 from .masters import (
     Design,
@@ -69,6 +70,7 @@ __all__ = [
     "Ticket",
     "TicketEvent",
     "TicketMaterial",
+    "TicketPendingWindow",
     "Attachment",
     "PmSchedule",
     "PmCompletion",

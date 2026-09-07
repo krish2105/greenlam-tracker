@@ -251,6 +251,15 @@ def _make_ticket(session: Session, plant_fixture: dict, **overrides):
         "ticket_no": "PR-2608-9001",
     }
     fields.update(overrides)
+    # `status` is the axis a person sees; `current_stage` is the forward-only
+    # counter. A fixture that sets one and not the other produces a "resolved"
+    # ticket the API still treats as raised, and the test fails for a reason
+    # that has nothing to do with what it is testing.
+    fields.setdefault(
+        "status",
+        {0: "raised", 1: "acknowledged", 2: "in_progress", 3: "in_progress",
+         4: "resolved", 5: "resolved", 6: "closed"}[fields["current_stage"]],
+    )
     ticket = Ticket(**fields)
     session.add(ticket)
     session.commit()

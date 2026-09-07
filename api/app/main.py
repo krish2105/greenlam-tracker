@@ -18,6 +18,7 @@ from .routers import (
     health,
     imports,
     impregnation,
+    lifecycle_actions,
     masters,
     people,
     production,
@@ -85,6 +86,7 @@ async def unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
 
 
 app.include_router(health.router)
+app.include_router(lifecycle_actions.router)
 app.include_router(auth.router)
 app.include_router(masters.router)
 app.include_router(tickets.router)

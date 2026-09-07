@@ -274,3 +274,102 @@ export function formatDuration(minutes: number): string {
   if (h < 24) return `${h}h ${m % 60}m`;
   return `${Math.floor(h / 24)}d ${h % 24}h`;
 }
+
+// ---------------------------------------------------------------------------
+// Solve time, repair start delay, and the reopen window
+//
+// Round 2 decisions document, "Resolved: Solve Time formula".
+// ---------------------------------------------------------------------------
+
+/** One paused stretch of a repair. Both kinds stop the clock. */
+export interface PendingWindow {
+  kind: 'material' | 'correction_pending';
+  startedAt: string;
+  /** Null while the wait is still running. */
+  endedAt?: string | null;
+}
+
+export interface SolveTimeInput {
+  /** `repair_at` on the row. The moment someone actually started work. */
+  correctionStartedAt?: string | null;
+  /** `resolved_at` on the row. The moment the machine ran again. */
+  correctionCompleteAt?: string | null;
+  pendingWindows?: PendingWindow[];
+}
+
+/**
+ * Minutes of pending time, counting only windows that have closed.
+ *
+ * An open window is deliberately excluded rather than run to `now`: while the
+ * plant is still waiting for a part, the repair has no solve time yet, and
+ * growing the subtraction every second would make the number move on a
+ * dashboard nobody is touching.
+ */
+export function pendingMinutes(windows: PendingWindow[] | undefined): number {
+  if (!windows?.length) return 0;
+  return windows.reduce(
+    (total, w) => (w.endedAt ? total + minutesBetween(w.startedAt, w.endedAt) : total),
+    0,
+  );
+}
+
+/**
+ * Solve time = (correction complete − correction started) − pending time.
+ *
+ * Measured from the moment work STARTED, not from acknowledgement. The wait
+ * before someone picks up a spanner is a real problem, but it is a different
+ * problem with a different owner, and folding it in here made a fast repair on
+ * a busy shift look like a slow one. It is reported separately as
+ * `repairStartDelay` below.
+ *
+ * Returns null until the repair is complete — an unfinished job has no
+ * duration, and returning 0 would drag every average down.
+ */
+export function solveTimeMinutes(input: SolveTimeInput): number | null {
+  const { correctionStartedAt, correctionCompleteAt } = input;
+  if (!correctionStartedAt || !correctionCompleteAt) return null;
+
+  const gross = minutesBetween(correctionStartedAt, correctionCompleteAt);
+  const net = gross - pendingMinutes(input.pendingWindows);
+  // Clock skew between a queued device timestamp and a server one can put the
+  // subtraction slightly ahead of the elapsed time. Zero is the honest floor;
+  // a negative repair duration is not a thing.
+  return Math.max(0, Math.round(net * 10) / 10);
+}
+
+/**
+ * How long a ticket sat acknowledged before work began.
+ *
+ * Kept as its own KPI precisely because it is no longer inside solve time —
+ * this is the number that shows a team acknowledging quickly to stop the SLA
+ * clock and then not starting.
+ */
+export function repairStartDelayMinutes(
+  ackedAt?: string | null,
+  correctionStartedAt?: string | null,
+): number | null {
+  if (!ackedAt || !correctionStartedAt) return null;
+  return Math.max(0, Math.round(minutesBetween(ackedAt, correctionStartedAt) * 10) / 10);
+}
+
+/**
+ * The reopen bracket: 48 hours from the last fix.
+ *
+ * Inside it, the same problem coming back is the SAME ticket reopened. Outside
+ * it, it is a new ticket. One rule, so two shifts do not record the same
+ * recurrence two different ways and split it across two metrics.
+ */
+export const REOPEN_WINDOW_HOURS = 48;
+
+/**
+ * Whether a recurrence now should reopen the existing ticket or start a new
+ * one. The SOP sentence, as a function, so the app and the training slide
+ * cannot drift apart.
+ */
+export function shouldReopenRatherThanRaise(
+  correctionCompleteAt: string | null | undefined,
+  nowIso: string,
+): boolean {
+  if (!correctionCompleteAt) return false;
+  return minutesBetween(correctionCompleteAt, nowIso) <= REOPEN_WINDOW_HOURS * 60;
+}
