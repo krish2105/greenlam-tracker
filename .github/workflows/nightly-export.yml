@@ -21,16 +21,37 @@ jobs:
           python-version: '3.12'
           cache: pip
 
+      # This has been failing nightly since the workflow was written, because
+      # EXPORT_DATABASE_URL was never set. A scheduled job that fails every
+      # night emails the repository owner every night, and within a week those
+      # emails are filtered — including the one reporting a real breakage.
+      - name: Check the connection string is set
+        id: guard
+        env:
+          EXPORT_DATABASE_URL: ${{ secrets.EXPORT_DATABASE_URL }}
+        run: |
+          if [ -z "$EXPORT_DATABASE_URL" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::EXPORT_DATABASE_URL is not set, so no workbook is"
+            echo "::notice::being built. Add it as an Actions secret — a"
+            echo "::notice::read-only role, never the read-write string."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install
+        if: steps.guard.outputs.configured == 'true'
         run: pip install -r export/requirements.txt
 
       - name: Build
+        if: steps.guard.outputs.configured == 'true'
         env:
           # Read-only role. The runner must never be able to write.
           EXPORT_DATABASE_URL: ${{ secrets.EXPORT_DATABASE_URL }}
         run: python -m export.build_workbook --out ./dist/exports
 
       - name: Check it is not empty
+        if: steps.guard.outputs.configured == 'true'
         run: |
           # A silently-empty workbook is the failure mode that matters: people
           # keep opening it and acting on stale data.
@@ -42,6 +63,7 @@ jobs:
           find ./dist/exports -name '*.xlsx' -size -8k -print -exec false {} +
 
       - uses: actions/upload-artifact@v4
+        if: steps.guard.outputs.configured == 'true'
         with:
           name: greenlam-export
           path: dist/exports/
