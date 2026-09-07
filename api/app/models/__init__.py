@@ -49,7 +49,7 @@ from .org import (
     Unit,
 )
 from .people import AuditLog, Device, RefreshToken, User
-from .production import ImpregnationLog, ProductionLog
+from .production import ImpregnationLog, ProductionLog, ResinBatch
 
 __all__ = [
     # org
@@ -76,6 +76,7 @@ __all__ = [
     "PmCompletion",
     # production
     "ProductionLog",
+    "ResinBatch",
     # ops
     "ExportRun",
     "ReviewRun",

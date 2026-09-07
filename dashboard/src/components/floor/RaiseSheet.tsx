@@ -14,7 +14,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { PRIORITIES, sectionColour } from '@greenlam/core';
+
+import { sectionColour } from '@greenlam/core';
 
 import * as api from '../../lib/api';
 import { Sheet } from '../Sheet';
@@ -34,7 +35,19 @@ export function RaiseSheet({
   const [sections, setSections] = useState<api.Section[]>([]);
   const [query, setQuery] = useState('');
   const [machineId, setMachineId] = useState<number | null>(prefill?.machine_id ?? null);
-  const [priority, setPriority] = useState('Medium');
+  // NOT asked for any more. The roadmap crosses urgency off the raise form,
+  // and it was the wrong question anyway: a person standing next to a stopped
+  // press is the worst-placed person in the plant to grade its severity, and
+  // within a month everything is Critical.
+  //
+  // Criticality already lives on the machine, set once by someone with the
+  // whole plant in view. A critical machine makes a High ticket; the rest make
+  // Medium. Escalation still has something to sort on.
+  //
+  // Provisional: open question 5-A in the build specification. One line to
+  // change if Greenlam wants the field back.
+  const priority =
+    machines.find((m) => m.id === machineId)?.criticality === 'A' ? 'High' : 'Medium';
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -190,37 +203,6 @@ export function RaiseSheet({
             </>
           )}
         </div>
-
-        <fieldset>
-          <legend
-            className="mb-1 font-medium"
-            style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)' }}
-          >
-            {t('raise.priority')}
-          </legend>
-          <div className="grid grid-cols-4 gap-2">
-            {PRIORITIES.map((p) => {
-              const active = p === priority;
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPriority(p)}
-                  aria-pressed={active}
-                  className="arch border py-2.5 font-medium"
-                  style={{
-                    fontSize: 'var(--text-sm)',
-                    borderColor: active ? 'var(--accent)' : 'var(--line)',
-                    background: active ? 'var(--accent-quiet)' : 'var(--surface)',
-                    color: active ? 'var(--ink)' : 'var(--ink-muted)',
-                  }}
-                >
-                  {p}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
 
         <div>
           <label

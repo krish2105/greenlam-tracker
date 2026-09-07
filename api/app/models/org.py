@@ -70,6 +70,15 @@ class Machine(PlantScoped, Timestamped, table=True):
     install_date: date | None = Field(default=None)
     criticality: str = Field(default="B", max_length=1)
 
+    # Which production form this machine gets: a press logs sheets against a
+    # material code, a resin kettle logs a batch and a quantity, an impregnator
+    # logs paper, RC/VC and the resin batch it drew from.
+    #
+    # Declared here rather than derived from the section: a section says where a
+    # machine stands, this says what it does, and the two come apart as soon as
+    # a second impregnator goes in somewhere else.
+    production_form: str = Field(default="general", max_length=20)
+
     # Converts "47 hours of downtime" into a rupee figure on the dashboard.
     # Comes from finance — never invented here. While it is NULL the dashboard
     # says plainly that no rate has been set rather than showing a guess.

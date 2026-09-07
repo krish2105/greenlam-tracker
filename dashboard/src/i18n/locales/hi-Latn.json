@@ -344,7 +344,20 @@
     "thickness": "Motai",
     "fromRoll": "Kis roll se bani",
     "fromRollPlaceholder": "Roll number, agar pata ho",
-    "fromRollHint": "Vaikalpik. Roll ka naam likhne se hi kharabi ko paper tak joda ja sakta hai."
+    "fromRollHint": "Vaikalpik. Roll ka naam likhne se hi kharabi ko paper tak joda ja sakta hai.",
+    "pickMachine": "Kaun si machine?",
+    "pickMachineHint": "Chuniye, aur usi ka form milega — aur kuch nahi.",
+    "searchMachine": "Code ya naam se khojein",
+    "noMachines": "Koi machine nahi mili.",
+    "savedProduction": "Production save ho gaya.",
+    "savedRoll": "Roll save ho gaya.",
+    "savedBatch": "Batch save ho gaya.",
+    "form": {
+      "press": "Sheet",
+      "resin": "Batch",
+      "impregnation": "Paper roll",
+      "general": "Sheet"
+    }
   },
   "plantMap": {
     "title": "Plant, samay ke hisaab se",
@@ -530,5 +543,23 @@
     "saveFailed": "Yeh maan sweekar nahi hua.",
     "savedNote": "Har khaane se bahar nikalte hi save ho jata hai. Koi save button nahi — adhoora kaam bhi bacha rehta hai.",
     "nav": "Setup"
+  },
+  "floorHome": {
+    "title": "Aap kis liye aaye hain?",
+    "subtitle": "Do kaam, do darwaze.",
+    "maintenance": "Maintenance",
+    "maintenanceDetail": "Kharabi darj karein, ya us par kaam karein",
+    "production": "Production",
+    "productionDetail": "Is shift mein machine ne kya banaya, darj karein"
+  },
+  "resin": {
+    "title": "Resin batch — {{machine}}",
+    "batchNo": "Batch number",
+    "batchNoHint": "Aage chalkar impregnated roll isi ko dikhayega. Yeh alag hona zaroori hai.",
+    "quantity": "Quantity",
+    "rejected": "Reject",
+    "rejectedTooMany": "Batch ki quantity se zyada hai.",
+    "notes": "Tippani",
+    "save": "Batch save karein"
   }
 }

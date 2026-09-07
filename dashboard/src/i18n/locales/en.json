@@ -344,7 +344,20 @@
     "thickness": "Thickness",
     "fromRoll": "Pressed from roll",
     "fromRollPlaceholder": "Roll number, if known",
-    "fromRollHint": "Optional. Naming the roll is what lets a reject be traced back to the paper."
+    "fromRollHint": "Optional. Naming the roll is what lets a reject be traced back to the paper.",
+    "pickMachine": "Which machine?",
+    "pickMachineHint": "Pick it and you get the form it needs — nothing else.",
+    "searchMachine": "Search by code or name",
+    "noMachines": "No machines match that.",
+    "savedProduction": "Production saved.",
+    "savedRoll": "Roll saved.",
+    "savedBatch": "Batch saved.",
+    "form": {
+      "press": "Sheets",
+      "resin": "Batch",
+      "impregnation": "Paper roll",
+      "general": "Sheets"
+    }
   },
   "plantMap": {
     "title": "The plant, by where the time goes",
@@ -530,5 +543,23 @@
     "saveFailed": "That value was not accepted.",
     "savedNote": "Saved as you leave each box. There is no Save button — a half-finished session keeps what you typed.",
     "nav": "Setup"
+  },
+  "floorHome": {
+    "title": "What are you here for?",
+    "subtitle": "Two jobs, two doors.",
+    "maintenance": "Maintenance",
+    "maintenanceDetail": "Report a breakdown, or work on one",
+    "production": "Production",
+    "productionDetail": "Log what a machine made this shift"
+  },
+  "resin": {
+    "title": "Resin batch — {{machine}}",
+    "batchNo": "Batch number",
+    "batchNoHint": "This is what an impregnated roll will point at later. It has to be unique.",
+    "quantity": "Quantity",
+    "rejected": "Rejected",
+    "rejectedTooMany": "More than the batch quantity.",
+    "notes": "Notes",
+    "save": "Save batch"
   }
 }

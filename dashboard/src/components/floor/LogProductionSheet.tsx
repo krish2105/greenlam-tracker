@@ -24,9 +24,13 @@ import { Sheet } from '../Sheet';
 export function LogProductionSheet({
   onClose,
   onLogged,
+  machineId: preselected = null,
 }: {
   onClose: () => void;
   onLogged: () => void;
+  /** Set when the machine was already chosen on the production screen. The
+      sheet then skips its own picker rather than asking twice. */
+  machineId?: number | null;
 }) {
   const { t, i18n } = useTranslation();
   const [machines, setMachines] = useState<api.Machine[]>([]);
@@ -35,7 +39,7 @@ export function LogProductionSheet({
   const [reasons, setReasons] = useState<api.RejectReason[]>([]);
 
   const [query, setQuery] = useState('');
-  const [machineId, setMachineId] = useState<number | null>(null);
+  const [machineId, setMachineId] = useState<number | null>(preselected);
   const [shiftId, setShiftId] = useState<number | null>(null);
   // The legacy free-text pair. Still sent so existing rows and the Excel
   // import keep round-tripping, but derived from the master selection rather

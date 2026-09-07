@@ -35,6 +35,8 @@ export interface Machine {
   name: string;
   name_hi: string | null;
   criticality: string;
+  /** Which production form this machine gets. The floor dispatches on it. */
+  production_form: 'press' | 'resin' | 'impregnation' | 'general';
   hourly_downtime_cost: number | null;
   qr_short_code: string;
   is_active: boolean;
@@ -889,6 +891,38 @@ export interface ImpregnationInput {
   thickness_after?: number | null;
   rc_percent?: number | null;
   vc_percent?: number | null;
+}
+
+export interface ResinBatchInput {
+  id?: string;
+  machine_id: number;
+  shift_id?: number | null;
+  batch_no: string;
+  log_date?: string | null;
+  quantity?: string | null;
+  unit_of_measure?: string | null;
+  accepted_qty?: string | null;
+  rejected_qty?: string | null;
+  reject_reason_id?: number | null;
+  notes?: string | null;
+}
+
+export interface ResinBatch {
+  id: string;
+  machine_id: number;
+  machine_code: string;
+  batch_no: string;
+  log_date: string;
+  quantity: string | null;
+  unit_of_measure: string | null;
+  accepted_qty: string | null;
+  rejected_qty: string | null;
+}
+
+/** Record a batch out of a resin kettle. The batch number is what an
+    impregnated roll will later point at, so the server refuses a duplicate. */
+export function logResinBatch(body: ResinBatchInput): Promise<ResinBatch> {
+  return request('/production/resin-batches', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export function logRoll(body: ImpregnationInput): Promise<ImpregnationRoll> {

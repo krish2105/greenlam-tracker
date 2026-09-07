@@ -14,9 +14,13 @@ operational detail.
 
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
-from uuid import uuid4
+from decimal import Decimal
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import BaseModel
+from pydantic import Field as PField
+from sqlmodel import select
 
 from ..deps import CanRaise, Operational, PrincipalDep, SessionDep
 from ..models import (
@@ -24,6 +28,7 @@ from ..models import (
     Machine,
     ProductionLog,
     RejectReason,
+    ResinBatch,
     Section,
     Shift,
     Ticket,
@@ -517,3 +522,142 @@ def roll_quality(
         # letting a two-roll coincidence become a slide.
         enough_data=buckets[True][0] >= 500 and buckets[False][0] >= 500,
     )
+
+
+# ---------------------------------------------------------------------------
+# Resin batches
+# ---------------------------------------------------------------------------
+
+
+class ResinBatchCreate(BaseModel):
+    """A batch out of a resin kettle.
+
+    `batch_no` is the identifier an impregnated roll will later reference, so
+    it is required and must be unique in the plant. Everything else is optional
+    because a kettle operator with a clipboard should be able to record the
+    batch now and the inspection result when it is known.
+    """
+
+    id: UUID | None = None  # UUIDv7 from the client, so a retry is a no-op
+    machine_id: int
+    shift_id: int | None = None
+    batch_no: str = PField(min_length=1, max_length=64)
+    log_date: date | None = None
+    quantity: Decimal | None = PField(default=None, ge=0)
+    unit_of_measure: str | None = PField(default=None, max_length=16)
+    accepted_qty: Decimal | None = PField(default=None, ge=0)
+    rejected_qty: Decimal | None = PField(default=None, ge=0)
+    reject_reason_id: int | None = None
+    notes: str | None = None
+
+
+class ResinBatchRead(BaseModel):
+    id: UUID
+    machine_id: int
+    machine_code: str
+    batch_no: str
+    log_date: date
+    quantity: Decimal | None
+    unit_of_measure: str | None
+    accepted_qty: Decimal | None
+    rejected_qty: Decimal | None
+
+
+@router.post(
+    "/resin-batches",
+    response_model=ResinBatchRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Record a resin batch",
+)
+def log_resin_batch(
+    body: ResinBatchCreate, principal: CanRaise, session: SessionDep
+) -> ResinBatchRead:
+    machine = session.get(Machine, body.machine_id)
+    if machine is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Machine not found")
+    assert_visible(machine, principal)
+
+    batch_no = body.batch_no.strip()
+    existing = session.exec(
+        select(ResinBatch).where(
+            ResinBatch.plant_id == machine.plant_id, ResinBatch.batch_no == batch_no
+        )
+    ).first()
+    if existing is not None:
+        # 409 rather than a silent overwrite: the number is what a roll will
+        # point at, and quietly merging two batches under one number would make
+        # a later trace wrong without anyone noticing.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Batch {batch_no} is already recorded on {machine.code}.",
+        )
+
+    if (
+        body.rejected_qty is not None
+        and body.quantity is not None
+        and body.rejected_qty > body.quantity
+    ):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Rejected cannot be more than the batch quantity.",
+        )
+    if body.rejected_qty and body.reject_reason_id is None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Choose a reject reason — a rejection with no reason cannot be acted on.",
+        )
+
+    batch = ResinBatch(
+        id=body.id or uuid4(),
+        plant_id=machine.plant_id,
+        unit_id=machine.unit_id,
+        machine_id=machine.id,
+        shift_id=body.shift_id,
+        batch_no=batch_no,
+        log_date=body.log_date or datetime.now(UTC).date(),
+        quantity=body.quantity,
+        unit_of_measure=body.unit_of_measure,
+        accepted_qty=body.accepted_qty,
+        rejected_qty=body.rejected_qty,
+        reject_reason_id=body.reject_reason_id,
+        notes=body.notes,
+        logged_by=principal.user_id,
+    )
+    session.add(batch)
+    session.commit()
+    session.refresh(batch)
+    return ResinBatchRead(
+        id=batch.id,
+        machine_id=batch.machine_id,
+        machine_code=machine.code,
+        batch_no=batch.batch_no,
+        log_date=batch.log_date,
+        quantity=batch.quantity,
+        unit_of_measure=batch.unit_of_measure,
+        accepted_qty=batch.accepted_qty,
+        rejected_qty=batch.rejected_qty,
+    )
+
+
+@router.get("/resin-batches", response_model=list[ResinBatchRead], summary="Recent resin batches")
+def list_resin_batches(
+    principal: PrincipalDep, session: SessionDep, limit: int = 50
+) -> list[ResinBatchRead]:
+    rows = session.exec(
+        scope(ResinBatch, principal).order_by(ResinBatch.created_at.desc()).limit(limit)
+    ).all()
+    codes = {m.id: m.code for m in session.exec(scope(Machine, principal)).all()}
+    return [
+        ResinBatchRead(
+            id=b.id,
+            machine_id=b.machine_id,
+            machine_code=codes.get(b.machine_id, "—"),
+            batch_no=b.batch_no,
+            log_date=b.log_date,
+            quantity=b.quantity,
+            unit_of_measure=b.unit_of_measure,
+            accepted_qty=b.accepted_qty,
+            rejected_qty=b.rejected_qty,
+        )
+        for b in rows
+    ]

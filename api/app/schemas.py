@@ -101,6 +101,8 @@ class MachineRead(BaseModel):
     model: str | None
     install_date: date | None
     criticality: str
+    # Which production form this machine gets — the floor app dispatches on it.
+    production_form: str
     hourly_downtime_cost: float | None
     # qr_short_code is safe to show — it is printed on the machine. qr_token is
     # withheld from list responses and served only to admins from /qr.

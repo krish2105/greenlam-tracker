@@ -19,7 +19,9 @@ import { can, homeRouteFor, type ThemePreference } from '@greenlam/core';
 import { AppHeader } from './components/AppHeader';
 import { OutboxBanner } from './components/OutboxBanner';
 import { ArchMark } from './components/ArchMark';
+import { FloorHome } from './components/floor/FloorHome';
 import { FloorView } from './components/floor/FloorView';
+import { ProductionView } from './components/floor/ProductionView';
 
 // The board carries Motion, the display face, four charts and the plant map.
 // Lazy so an operator's phone never downloads any of it.
@@ -158,8 +160,13 @@ function SignedIn({
         }`}
       >
         <Routes>
+          {/* The floor opens on a choice, not a screen. Maintenance and
+              production are done by different people at different moments, and
+              one combined screen showed a press operator eight paper fields he
+              could never fill. */}
+          <Route path="/floor" element={<FloorHome />} />
           <Route
-            path="/floor"
+            path="/floor/maintenance"
             element={
               <FloorView
                 user={user}
@@ -168,6 +175,7 @@ function SignedIn({
               />
             }
           />
+          <Route path="/floor/production" element={<ProductionView />} />
           <Route path="/floor/machines" element={<MachineMaster />} />
           {/* Importing rewrites shared history for the whole plant, so it sits
               behind the same capability that guards the masters it depends on.

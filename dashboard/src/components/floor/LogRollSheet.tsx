@@ -67,9 +67,12 @@ function breaches(
 export function LogRollSheet({
   onClose,
   onLogged,
+  machineId: preselected = null,
 }: {
   onClose: () => void;
   onLogged: (roll: api.ImpregnationRoll) => void;
+  /** Set when the machine was already chosen on the production screen. */
+  machineId?: number | null;
 }) {
   const { t, i18n } = useTranslation();
   const [machines, setMachines] = useState<api.Machine[]>([]);
@@ -78,7 +81,7 @@ export function LogRollSheet({
   const [sizes, setSizes] = useState<api.Vocab[]>([]);
   const [shifts, setShifts] = useState<api.Shift[]>([]);
 
-  const [machineId, setMachineId] = useState<number | null>(null);
+  const [machineId, setMachineId] = useState<number | null>(preselected);
   const [shiftId, setShiftId] = useState<number | null>(null);
   const [rollNo, setRollNo] = useState('');
   const [gsm, setGsm] = useState('');
