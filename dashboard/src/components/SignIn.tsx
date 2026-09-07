@@ -15,7 +15,6 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import * as api from '../lib/api';
-import { BrandLockup } from './BrandLockup';
 import { LanguageToggle } from '../i18n/LanguageToggle';
 import { ThemeToggle } from '../theme/ThemeToggle';
 
@@ -87,7 +86,27 @@ export function SignIn({ onSignedIn }: { onSignedIn: (user: api.ApiUser) => void
               screen in the product that gets to be decorative — everything
               after sign-in is somebody standing next to a stopped machine. */}
           <div className="flex flex-col items-center pt-2 text-center">
-            <BrandLockup size={92} />
+            {/* The real logo, not the drawn mark. This is the one screen with
+                room for the full lockup, and the one screen where a person is
+                deciding whether they are in the right place — so it should be
+                Greenlam's own artwork, wordmark and all.
+
+                The ARCH only, not the full lockup. The "Greenlam" wordmark is
+                dark green on white - on this canvas it sinks into the
+                background and reads as a smudge. The arch carries its own
+                light-green field, so it holds on either theme, and the name is
+                set in type below where it can take the theme's ink colour.
+
+                The drawn mark still runs everywhere else: this is a 305px
+                raster, and at the 28px of the nav bar a downscaled raster is
+                mush where the vector stays sharp. */}
+            <img
+              src="/greenlam-mark.png"
+              alt=""
+              width={104}
+              height={104}
+              className="brand-logo"
+            />
             <h1
               className="mt-4 font-semibold"
               style={{ fontSize: 'var(--text-2xl)', color: 'var(--ink)', letterSpacing: '-0.02em' }}
