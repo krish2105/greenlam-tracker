@@ -31,6 +31,10 @@ class ImpregnationCreate(BaseModel):
     # Percentages. Bounded at 100 because a resin content above that is a
     # typo — almost always a decimal point in the wrong place — and letting it
     # through would drag every average with it.
+    # Which resin batch this roll drew from. Optional: an operator who does
+    # not know it should still be able to record the roll rather than skip the
+    # whole entry.
+    resin_batch_id: UUID | None = None
     rc_percent: Decimal | None = Field(default=None, ge=0, le=100)
     vc_percent: Decimal | None = Field(default=None, ge=0, le=100)
 
@@ -58,6 +62,8 @@ class ImpregnationRead(BaseModel):
 
     cut_size_id: int | None
     thickness_after: Decimal | None
+    resin_batch_id: UUID | None
+    resin_batch_no: str | None
     rc_percent: Decimal | None
     vc_percent: Decimal | None
 
@@ -77,6 +83,10 @@ class RollTraceRead(BaseModel):
     """One roll and everything pressed from it."""
 
     roll: ImpregnationRead
+    # The step before the roll. None for rolls impregnated before batches were
+    # recorded — the trace then stops honestly at the paper.
+    resin_batch_no: str | None
+    resin_batch_rejected: Decimal | None
     runs: int
     produced: int
     rejected: int

@@ -100,6 +100,13 @@ class ImpregnationLog(PlantScoped, Timestamped, table=True):
     # Treated paper, after drying.
     cut_size_id: int | None = Field(default=None, foreign_key="sizes.id")
     thickness_after: Decimal | None = Field(default=None, max_digits=8, decimal_places=3)
+    # The resin this roll was impregnated with. Completes the chain:
+    # resin batch -> roll -> sheets. Nullable because rolls recorded before
+    # batches existed have no honest answer, and inventing one would put a
+    # fabricated cause under a real defect.
+    resin_batch_id: UUID | None = Field(
+        default=None, foreign_key="resin_batches.id", index=True
+    )
     rc_percent: Decimal | None = Field(default=None, max_digits=5, decimal_places=2)
     vc_percent: Decimal | None = Field(default=None, max_digits=5, decimal_places=2)
 

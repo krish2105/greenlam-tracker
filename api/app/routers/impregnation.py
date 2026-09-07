@@ -40,6 +40,7 @@ from ..models import (
     Machine,
     PaperGrade,
     ProductionLog,
+    ResinBatch,
     spec_breaches,
 )
 from ..schemas_impregnation import (
@@ -55,7 +56,9 @@ _DAYS_Q = Query(30, ge=1, le=365)
 _LIMIT_Q = Query(100, ge=1, le=500)
 
 
-def _to_read(row: ImpregnationLog, grade: PaperGrade | None) -> ImpregnationRead:
+def _to_read(
+    row: ImpregnationLog, grade: PaperGrade | None, batch_no: str | None = None
+) -> ImpregnationRead:
     return ImpregnationRead(
         id=row.id,
         machine_id=row.machine_id,
@@ -69,6 +72,8 @@ def _to_read(row: ImpregnationLog, grade: PaperGrade | None) -> ImpregnationRead
         paper_company_id=row.paper_company_id,
         cut_size_id=row.cut_size_id,
         thickness_after=row.thickness_after,
+        resin_batch_id=row.resin_batch_id,
+        resin_batch_no=batch_no,
         rc_percent=row.rc_percent,
         vc_percent=row.vc_percent,
         out_of_spec=row.out_of_spec,
@@ -109,6 +114,15 @@ def create_roll(
         grade = session.get(PaperGrade, body.paper_grade_id)
         assert_visible(grade, principal)
 
+    batch = None
+    if body.resin_batch_id is not None:
+        batch = session.get(ResinBatch, body.resin_batch_id)
+        if batch is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such resin batch.")
+        # Scoped like everything else. A roll pointing at another plant's batch
+        # would produce a trace that crosses plants and means nothing.
+        assert_visible(batch, principal)
+
     breaches = spec_breaches(grade, body.rc_percent, body.vc_percent)
 
     row = ImpregnationLog(
@@ -117,6 +131,7 @@ def create_roll(
         unit_id=machine.unit_id,
         machine_id=machine.id,
         shift_id=body.shift_id,
+        resin_batch_id=body.resin_batch_id,
         log_date=body.log_date,
         roll_no=body.roll_no.strip(),
         gsm=body.gsm,
@@ -207,9 +222,13 @@ def trace_roll(roll_no: str, principal: PrincipalDep, session: SessionDep) -> Ro
     produced = sum(r.produced_qty for r in runs)
     rejected = sum(r.rejected_qty for r in runs)
     grade = session.get(PaperGrade, roll.paper_grade_id) if roll.paper_grade_id else None
+    # One step further back than the chain used to reach: the resin.
+    batch = session.get(ResinBatch, roll.resin_batch_id) if roll.resin_batch_id else None
 
     return RollTraceRead(
-        roll=_to_read(roll, grade),
+        roll=_to_read(roll, grade, batch.batch_no if batch else None),
+        resin_batch_no=batch.batch_no if batch else None,
+        resin_batch_rejected=batch.rejected_qty if batch else None,
         runs=len(runs),
         produced=produced,
         rejected=rejected,

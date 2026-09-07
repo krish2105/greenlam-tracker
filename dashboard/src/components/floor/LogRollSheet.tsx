@@ -84,6 +84,12 @@ export function LogRollSheet({
   const [machineId, setMachineId] = useState<number | null>(preselected);
   const [shiftId, setShiftId] = useState<number | null>(null);
   const [rollNo, setRollNo] = useState('');
+  // The resin this roll is being impregnated with. Optional: an operator who
+  // does not know it should still record the roll rather than abandon the
+  // entry, and a blank is honest where a guess would put a fabricated cause
+  // under a real defect later.
+  const [batches, setBatches] = useState<api.ResinBatch[]>([]);
+  const [resinBatchId, setResinBatchId] = useState<string | null>(null);
   const [gsm, setGsm] = useState('');
   const [thickBefore, setThickBefore] = useState('');
   const [gradeId, setGradeId] = useState<number | null>(null);
@@ -98,6 +104,7 @@ export function LogRollSheet({
   const rollRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    void api.listResinBatches().then(setBatches).catch(() => setBatches([]));
     void Promise.all([
       api.listMachines(),
       api.listPaperGrades(),
@@ -138,6 +145,7 @@ export function LogRollSheet({
           shift_id: shiftId,
           log_date: new Date().toISOString().slice(0, 10),
           roll_no: rollNo.trim(),
+          resin_batch_id: resinBatchId,
           gsm: toNumber(gsm),
           thickness_before: toNumber(thickBefore),
           paper_grade_id: gradeId,
@@ -264,6 +272,34 @@ export function LogRollSheet({
             {t('roll.rollNoHint')}
           </p>
         </div>
+
+        {/* The step that makes the chain complete: resin batch -> this roll ->
+            the sheets pressed from it. Only offered when batches exist, so a
+            plant that has not started recording them sees nothing. */}
+        {batches.length > 0 && (
+          <div>
+            <label htmlFor="roll-resin" className="mb-1 block font-medium" style={labelStyle}>
+              {t('roll.resinBatch')}
+            </label>
+            <select
+              id="roll-resin"
+              value={resinBatchId ?? ''}
+              onChange={(e) => setResinBatchId(e.target.value || null)}
+              className="arch w-full border px-3 py-3"
+              style={field}
+            >
+              <option value="">{t('roll.resinBatchNone')}</option>
+              {batches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.batch_no} · {b.machine_code}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>
+              {t('roll.resinBatchHint')}
+            </p>
+          </div>
+        )}
 
         <Picker
           id="roll-machine"

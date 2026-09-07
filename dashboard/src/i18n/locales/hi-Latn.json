@@ -496,7 +496,10 @@
       "needRoll": "Roll number zaroori hai — iske bina kharabi ko peeche tak nahi joda ja sakta.",
       "duplicate": "Roll {{roll}} pehle se darj hai.",
       "failed": "Save nahi ho saka. Dobara koshish karein."
-    }
+    },
+    "resinBatch": "Resin batch",
+    "resinBatchNone": "Pata nahi / darj nahi",
+    "resinBatchHint": "Is roll ko uske resin se jodta hai, taaki press par mila defect peechhe tak dhoondha ja sake."
   },
   "perf": {
     "title": "Machine dar machine",

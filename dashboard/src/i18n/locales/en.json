@@ -496,7 +496,10 @@
       "needRoll": "A roll number is required — without it a reject cannot be traced back.",
       "duplicate": "Roll {{roll}} is already logged.",
       "failed": "Could not save that. Try again."
-    }
+    },
+    "resinBatch": "Resin batch",
+    "resinBatchNone": "Don't know / not recorded",
+    "resinBatchHint": "Links this roll to the resin it came from, so a defect at the press can be traced back."
   },
   "perf": {
     "title": "Machine by machine",

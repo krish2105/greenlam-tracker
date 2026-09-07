@@ -891,6 +891,8 @@ export interface ImpregnationInput {
   thickness_after?: number | null;
   rc_percent?: number | null;
   vc_percent?: number | null;
+  /** The resin batch this roll drew from. Completes the trace. */
+  resin_batch_id?: string | null;
 }
 
 export interface ResinBatchInput {
@@ -917,6 +919,11 @@ export interface ResinBatch {
   unit_of_measure: string | null;
   accepted_qty: string | null;
   rejected_qty: string | null;
+}
+
+/** Recent resin batches, for the roll form's picker. */
+export function listResinBatches(limit = 50): Promise<ResinBatch[]> {
+  return request(`/production/resin-batches?limit=${limit}`);
 }
 
 /** Record a batch out of a resin kettle. The batch number is what an
