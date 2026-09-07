@@ -154,3 +154,28 @@ class QrScan(SQLModel, table=True):
     scanned_at: datetime = Field(default_factory=utcnow, index=True, sa_type=utc_ts())
     resulted_in: str | None = Field(default=None, max_length=20)  # ticket|production|abandoned
     source: str | None = Field(default=None, max_length=20)  # in_app|native_camera
+
+
+class PlantSetting(SQLModel, table=True):
+    """An admin-editable dial, per plant.
+
+    V5 §16 leaves four numbers to the plant rather than to this codebase: the
+    two criticality boundaries for a press, the same two for everything else,
+    the repeat-failure window, and the no-follow-up-production window. Every
+    one of them is a duration, which is why one table with a minutes column
+    holds all of them instead of four columns on four different tables.
+
+    NULL minutes means "not decided yet" — the no-follow-up window arrives that
+    way, because V5 defers it until the trial has produced a baseline. Callers
+    must handle that rather than substituting a guess; a window invented here
+    would silently start flagging repairs against a number nobody agreed to.
+    """
+
+    __tablename__ = "plant_settings"
+
+    id: int | None = Field(default=None, primary_key=True)
+    plant_id: int = Field(foreign_key="plants.id", index=True)
+    key: str = Field(max_length=64, index=True)  # unique per plant, see migration
+    minutes: int | None = Field(default=None)
+    updated_at: datetime | None = Field(default=None, sa_type=utc_ts())
+    updated_by: int | None = Field(default=None, foreign_key="users.id")

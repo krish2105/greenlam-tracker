@@ -3,13 +3,14 @@
  *
  * WHY THE MACHINE COMES FIRST
  *
- * A press logs sheets against a material code. A resin kettle logs a batch and
- * a quantity. An impregnator logs paper, RC, VC and the resin batch it drew
- * from. These are three different jobs that happen to share the word
+ * A press logs sheets against a Load No. A resin kettle logs a batch and a
+ * quantity. An impregnator logs paper, RC, VC and the resin batch it drew
+ * from. The AC room logs sheets conditioned for a load and makes nothing at
+ * all. These are four different jobs that happen to share the word
  * "production", and one combined form showed a press operator eight paper
  * fields he could never fill.
  *
- * Choosing the machine first means the app already knows which of the three it
+ * Choosing the machine first means the app already knows which of the four it
  * is by the time anything is asked. The dispatch is on `production_form`,
  * declared on the machine — not on its section, because a section says where a
  * machine stands rather than what it does.
@@ -21,7 +22,9 @@ import { useTranslation } from 'react-i18next';
 import * as api from '../../lib/api';
 import { useSectionName } from '../../lib/masterNames';
 import { LogProductionSheet } from './LogProductionSheet';
+import { ACRoomSheet } from './ACRoomSheet';
 import { LogRollSheet } from './LogRollSheet';
+import { ProductionLogView } from './ProductionLogView';
 import { ResinBatchSheet } from './ResinBatchSheet';
 
 export function ProductionView() {
@@ -163,8 +166,14 @@ export function ProductionView() {
         ))
       )}
 
+      {/* What has already gone in today. Below the machine picker, because the
+          job people came here to do is log an entry — but close enough to
+          answer "has the last shift already done this?" before they start. */}
+      <ProductionLogView />
+
       {/* Dispatch. An impregnator gets the roll form, a kettle the batch form,
-          everything else the sheet-count form. */}
+          the AC room its own handling form, everything else the sheet-count
+          form. */}
       {chosen?.production_form === 'impregnation' && (
         <LogRollSheet
           machineId={chosen.id}
@@ -177,6 +186,13 @@ export function ProductionView() {
           machine={chosen}
           onClose={close}
           onSaved={() => done(t('production.savedBatch'))}
+        />
+      )}
+      {chosen?.production_form === 'ac_room' && (
+        <ACRoomSheet
+          machine={chosen}
+          onClose={close}
+          onLogged={() => done(t('production.savedProduction'))}
         />
       )}
       {(chosen?.production_form === 'press' || chosen?.production_form === 'general') && (

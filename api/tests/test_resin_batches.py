@@ -57,6 +57,58 @@ class TestRecordingABatch:
         assert client.post("/production/resin-batches", json=body, headers=h).status_code == 409
 
 
+class TestTheNumberMayBeAbsent:
+    """V5 §6.2 reversed migration 0009: the number is optional now.
+
+    The resin register actually kept on the floor has not been confirmed, and a
+    required field the operator cannot answer gets filled with something rather
+    than left empty — which is worse, because a made-up number looks traceable.
+    """
+
+    def test_a_batch_with_no_number_is_recorded(
+        self, client: TestClient, plant_fixture, auth_headers, session
+    ):
+        mid = _kettle(session, plant_fixture)
+        r = client.post(
+            "/production/resin-batches",
+            json={"machine_id": mid, "quantity": "500.00"},
+            headers=auth_headers("app"),
+        )
+        assert r.status_code == 201, r.text
+        assert r.json()["batch_no"] is None
+
+    def test_two_unnumbered_batches_are_two_batches(
+        self, client: TestClient, plant_fixture, auth_headers, session
+    ):
+        """Not a collision. They simply cannot be traced to."""
+        mid = _kettle(session, plant_fixture)
+        h = auth_headers("app")
+        body = {"machine_id": mid, "quantity": "250.00"}
+        assert client.post("/production/resin-batches", json=body, headers=h).status_code == 201
+        assert client.post("/production/resin-batches", json=body, headers=h).status_code == 201
+
+    def test_blank_is_the_same_as_absent(
+        self, client: TestClient, plant_fixture, auth_headers, session
+    ):
+        # Otherwise the second empty string collides with the first.
+        mid = _kettle(session, plant_fixture)
+        h = auth_headers("app")
+        body = {"machine_id": mid, "batch_no": "   "}
+        assert client.post("/production/resin-batches", json=body, headers=h).status_code == 201
+        assert client.post("/production/resin-batches", json=body, headers=h).status_code == 201
+
+    def test_a_number_given_twice_is_still_refused(
+        self, client: TestClient, plant_fixture, auth_headers, session
+    ):
+        """Optional does not mean unenforced. Where a number exists it is
+        still the thing a roll points at."""
+        mid = _kettle(session, plant_fixture)
+        h = auth_headers("app")
+        body = {"machine_id": mid, "batch_no": "RB-2609-900"}
+        assert client.post("/production/resin-batches", json=body, headers=h).status_code == 201
+        assert client.post("/production/resin-batches", json=body, headers=h).status_code == 409
+
+
 class TestInspection:
     def test_rejecting_more_than_was_made_is_refused(
         self, client: TestClient, plant_fixture, auth_headers, session

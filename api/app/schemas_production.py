@@ -16,8 +16,14 @@ class ProductionCreate(BaseModel):
     log_date: date | None = None
     # Legacy free text. Retained so the Excel round-trip and existing rows
     # keep working; the *_id fields below are what any GROUP BY should use.
-    size: str = Field(min_length=1, max_length=80)
-    texture: str = Field(min_length=1, max_length=80)
+    #
+    # Optional because not every process has them. The AC room handles treated
+    # paper for a load — it does not make a size or a texture, and the operator
+    # there has neither to give. Left empty rather than filled with a dash: an
+    # empty cell reads as "not applicable", a dash reads as a value somebody
+    # chose.
+    size: str = Field(default="", max_length=80)
+    texture: str = Field(default="", max_length=80)
     thickness: str | None = Field(default=None, max_length=40)
 
     design_id: int | None = None
@@ -28,6 +34,10 @@ class ProductionCreate(BaseModel):
     # operator reads a number off the roll, and asking the client to resolve it
     # first would mean a lookup on a phone that may be offline.
     roll_no: str | None = Field(default=None, max_length=64)
+    # The SAP load plan this output belongs to. Required at the press, optional
+    # downstream — the router decides, because the rule depends on which
+    # machine it is and the schema cannot see the machine.
+    load_no: str | None = Field(default=None, max_length=64)
 
     produced_qty: int = Field(ge=0)
     rejected_qty: int = Field(default=0, ge=0)
@@ -40,6 +50,7 @@ class ProductionRead(BaseModel):
     log_date: date
     machine_code: str
     shift_name: str | None
+    load_no: str | None
     size: str
     texture: str
     produced_qty: int
@@ -48,6 +59,8 @@ class ProductionRead(BaseModel):
     target_qty: int | None
     reject_percent: float
     logged_by_name: str
+    last_edited_at: datetime | None = None
+    last_edited_by_name: str | None = None
 
 
 class RejectSlice(BaseModel):

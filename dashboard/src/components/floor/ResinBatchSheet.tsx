@@ -9,6 +9,12 @@
  * impregnated roll references it, and a blister found at the press is traced
  * backwards through it. The server refuses a duplicate rather than merging
  * two batches under one number, and this form says so plainly when it does.
+ *
+ * It is nonetheless OPTIONAL. The resin register actually kept on the floor
+ * has not been confirmed (V5 §6.2, §16), and a required field the operator
+ * cannot answer gets filled with something — a made-up number that later reads
+ * as traceable is worse than an honest blank. A batch saved without one simply
+ * cannot be pointed at by a roll, and the form says that too.
  */
 
 import { useEffect, useState } from 'react';
@@ -51,8 +57,9 @@ export function ResinBatchSheet({
   const needsReason = rejectedNum > 0 && reasonId === null;
   const rejectsTooMany = quantity !== '' && rejectedNum > quantityNum;
 
-  const canSave =
-    batchNo.trim().length > 0 && !needsReason && !rejectsTooMany && !saving;
+  // Nothing is required. A kettle operator with a clipboard and no number can
+  // still record that a batch was made.
+  const canSave = !needsReason && !rejectsTooMany && !saving;
 
   const labelStyle = { color: 'var(--ink)', fontSize: 'var(--text-sm)' } as const;
   const fieldStyle = {
@@ -68,7 +75,7 @@ export function ResinBatchSheet({
       await api.logResinBatch({
         machine_id: machine.id,
         shift_id: shiftId,
-        batch_no: batchNo.trim(),
+        batch_no: batchNo.trim() || null,
         quantity: quantity === '' ? null : quantity,
         rejected_qty: rejected === '' ? null : rejected,
         reject_reason_id: reasonId,
@@ -98,7 +105,7 @@ export function ResinBatchSheet({
             style={fieldStyle}
           />
           <p className="mt-1" style={{ color: 'var(--ink-muted)', fontSize: 'var(--text-xs)' }}>
-            {t('resin.batchNoHint')}
+            {batchNo.trim() ? t('resin.batchNoHint') : t('resin.batchNoAbsent')}
           </p>
         </div>
 

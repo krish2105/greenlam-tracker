@@ -1,0 +1,237 @@
+/**
+ * The AC Room: treated paper, assembled against a press load.
+ *
+ * WHY IT IS NOT THE PRESS FORM
+ *
+ * Nothing is made here. Treated paper arrives, it is conditioned and issued for
+ * a particular load, and what gets recorded is how many sheets went through and
+ * how many did not survive. There is no design, no size, no texture to choose —
+ * the press form's four dropdowns would all be unanswerable, and a form full of
+ * fields an operator must skip teaches them to skip the ones that matter too.
+ *
+ * The Load No. is the whole point of the entry. It is not required here the way
+ * it is at the press — V5 §6.2A says the AC room carries it *where* paper is
+ * being assembled for a particular load, which is most of the time but not a
+ * rule — so it is asked for first and prominently, and left to the operator.
+ *
+ * The pack-order photo from V5 §6.2 is NOT here yet, and neither is any other
+ * photo in this system: the `attachments` table exists and no endpoint writes
+ * to it. One storage layer serves the material receipt (§5.4), the photo that
+ * ends a parts hold (§5.4) and this pack order, so it gets built once rather
+ * than three times — and it is still outstanding.
+ */
+
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import * as api from '../../lib/api';
+import { Sheet } from '../Sheet';
+
+export function ACRoomSheet({
+  machine,
+  onClose,
+  onLogged,
+}: {
+  machine: api.Machine;
+  onClose: () => void;
+  onLogged: () => void;
+}) {
+  const { t } = useTranslation();
+
+  const [shifts, setShifts] = useState<api.Shift[]>([]);
+  const [reasons, setReasons] = useState<api.RejectReason[]>([]);
+  const [shiftId, setShiftId] = useState<number | null>(null);
+
+  const [loadNo, setLoadNo] = useState('');
+  const [processed, setProcessed] = useState('');
+  const [rejected, setRejected] = useState('0');
+  const [reasonId, setReasonId] = useState<number | null>(null);
+
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    void Promise.all([
+      api.listShifts().catch(() => []),
+      api.listRejectReasons().catch(() => []),
+    ]).then(([sh, r]) => {
+      setShifts(sh);
+      setReasons(r);
+      if (sh.length) setShiftId(sh[0]!.id);
+    });
+  }, []);
+
+  const processedCount = Number(processed) || 0;
+  const rejectedCount = Number(rejected) || 0;
+
+  const field = {
+    borderColor: 'var(--line-strong)',
+    background: 'var(--surface)',
+    color: 'var(--ink)',
+  } as const;
+  const labelStyle = { fontSize: 'var(--text-sm)', color: 'var(--ink)' } as const;
+
+  async function submit() {
+    if (!processedCount) return setError(t('production.errors.needQty'));
+    if (rejectedCount > processedCount) return setError(t('production.errors.tooManyRejects'));
+    if (rejectedCount > 0 && reasonId === null) return setError(t('production.errors.needReason'));
+
+    setBusy(true);
+    setError('');
+    try {
+      await api.logProduction({
+        machine_id: machine.id,
+        shift_id: shiftId,
+        load_no: loadNo.trim() || null,
+        // Deliberately absent: the AC room has no size or texture to report.
+        produced_qty: processedCount,
+        rejected_qty: rejectedCount,
+        reject_reason_id: rejectedCount > 0 ? reasonId : null,
+      });
+      onLogged();
+    } catch {
+      setError(t('production.errors.failed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Sheet title={t('acRoom.title', { machine: machine.code })} onClose={onClose}>
+      <div className="space-y-5">
+        <div>
+          <label htmlFor="ac-load" className="mb-1 block font-medium" style={labelStyle}>
+            {t('production.loadNoOptional')}
+          </label>
+          <input
+            id="ac-load"
+            value={loadNo}
+            onChange={(e) => setLoadNo(e.target.value.toUpperCase())}
+            placeholder={t('production.loadNoPlaceholder')}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            aria-describedby="ac-load-hint"
+            className="arch w-full border px-3 py-3"
+            style={field}
+          />
+          <p
+            id="ac-load-hint"
+            className="mt-1"
+            style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}
+          >
+            {t('acRoom.loadHint')}
+          </p>
+        </div>
+
+        {shifts.length > 0 && (
+          <fieldset>
+            <legend className="mb-1 font-medium" style={labelStyle}>
+              {t('production.shift')}
+            </legend>
+            <div className="grid grid-cols-3 gap-2">
+              {shifts.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setShiftId(s.id)}
+                  aria-pressed={s.id === shiftId}
+                  className="arch border px-3 py-2.5 font-medium"
+                  style={{
+                    fontSize: 'var(--text-sm)',
+                    borderColor: s.id === shiftId ? 'var(--accent)' : 'var(--line)',
+                    background: s.id === shiftId ? 'var(--accent-quiet)' : 'var(--surface)',
+                    color: s.id === shiftId ? 'var(--ink)' : 'var(--ink-muted)',
+                  }}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="ac-processed" className="mb-1 block font-medium" style={labelStyle}>
+              {t('acRoom.processed')}
+            </label>
+            <input
+              id="ac-processed"
+              value={processed}
+              onChange={(e) => setProcessed(e.target.value.replace(/\D/g, ''))}
+              inputMode="numeric"
+              className="tabular arch w-full border px-3 py-3"
+              style={field}
+            />
+          </div>
+          <div>
+            <label htmlFor="ac-rejected" className="mb-1 block font-medium" style={labelStyle}>
+              {t('production.rejected')}
+            </label>
+            <input
+              id="ac-rejected"
+              value={rejected}
+              onChange={(e) => setRejected(e.target.value.replace(/\D/g, ''))}
+              inputMode="numeric"
+              className="tabular arch w-full border px-3 py-3"
+              style={field}
+            />
+          </div>
+        </div>
+
+        {/* Appears only when there is something to explain. */}
+        {rejectedCount > 0 && (
+          <fieldset>
+            <legend className="mb-1 font-medium" style={labelStyle}>
+              {t('production.rejectReason')}
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {reasons.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => setReasonId(r.id)}
+                  aria-pressed={r.id === reasonId}
+                  className="arch border px-3 py-2.5 font-medium"
+                  style={{
+                    fontSize: 'var(--text-sm)',
+                    borderColor: r.id === reasonId ? 'var(--accent)' : 'var(--line)',
+                    background: r.id === reasonId ? 'var(--accent-quiet)' : 'var(--surface)',
+                    color: r.id === reasonId ? 'var(--ink)' : 'var(--ink-muted)',
+                  }}
+                >
+                  {r.name}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
+
+        {error && (
+          <p
+            role="alert"
+            className="arch px-3 py-2"
+            style={{
+              background: 'var(--rust-tint)',
+              color: 'var(--rust)',
+              fontSize: 'var(--text-sm)',
+            }}
+          >
+            {error}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={() => void submit()}
+          disabled={busy}
+          className="arch w-full py-4 font-semibold disabled:opacity-60"
+          style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
+        >
+          {busy ? t('production.submitting') : t('production.submit')}
+        </button>
+      </div>
+    </Sheet>
+  );
+}

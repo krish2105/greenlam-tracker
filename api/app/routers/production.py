@@ -48,7 +48,14 @@ from ..tenancy import assert_visible, scope
 
 router = APIRouter(prefix="/production", tags=["production"])
 
+# Analytics windows. Seven days is the floor because an MTTR or a reject rate
+# over three days is noise dressed as a trend.
 _DAYS_Q = Query(90, ge=7, le=365)
+
+# The row list is a different question — "what has been logged today" is the
+# one the daily entry log (V5 §6.4) asks at every handover, and it is asked of
+# rows rather than of an average, so a single day is a legitimate answer.
+_LIST_DAYS_Q = Query(90, ge=1, le=365)
 _LIMIT_Q = Query(100, le=500)
 
 # Window either side of a breakdown in which a reject spike is considered
@@ -88,6 +95,21 @@ def log_production(
             detail="Rejected cannot be more than produced.",
         )
 
+    # The Load No. is what the press cycle is planned around, and it is the
+    # only handle a finished sheet has back to the load it belongs to. Missing
+    # it at the press breaks the chain for every downstream row that references
+    # the same load, so this is the one place it is required.
+    #
+    # Everywhere else it is optional: cutting and sanding carry it where the
+    # operator has it, and forcing it there would only teach people to type
+    # something.
+    load_no = (body.load_no or "").strip() or None
+    if machine.production_form == "press" and load_no is None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A press entry needs its Load No. — it is what ties these sheets to the load.",
+        )
+
     # Resolve the roll number to a roll, if one was given. Unknown numbers are
     # accepted as "no roll" rather than refused: a press operator typing a roll
     # that has not been logged yet is a sequencing problem on the floor, and
@@ -117,6 +139,7 @@ def log_production(
         texture_id=body.texture_id,
         thickness_id=body.thickness_id,
         impregnation_log_id=roll_id,
+        load_no=load_no,
         produced_qty=body.produced_qty,
         rejected_qty=body.rejected_qty,
         reject_reason_id=body.reject_reason_id,
@@ -134,12 +157,14 @@ def _to_read(row: ProductionLog, session: SessionDep, principal) -> ProductionRe
     shift = session.get(Shift, row.shift_id) if row.shift_id else None
     reason = session.get(RejectReason, row.reject_reason_id) if row.reject_reason_id else None
     logger = session.get(User, row.logged_by)
+    editor = session.get(User, row.last_edited_by) if row.last_edited_by else None
     total = row.produced_qty + row.rejected_qty
     return ProductionRead(
         id=row.id,
         log_date=row.log_date,
         machine_code=machine.code if machine else "—",
         shift_name=shift.name if shift else None,
+        load_no=row.load_no,
         size=row.size,
         texture=row.texture,
         produced_qty=row.produced_qty,
@@ -151,6 +176,8 @@ def _to_read(row: ProductionLog, session: SessionDep, principal) -> ProductionRe
         # are going badly.
         reject_percent=round(100 * row.rejected_qty / total, 2) if total else 0.0,
         logged_by_name=logger.name if logger else "—",
+        last_edited_at=row.last_edited_at,
+        last_edited_by_name=editor.name if editor else None,
     )
 
 
@@ -158,7 +185,7 @@ def _to_read(row: ProductionLog, session: SessionDep, principal) -> ProductionRe
 def list_production(
     principal: Operational,
     session: SessionDep,
-    days: int = _DAYS_Q,
+    days: int = _LIST_DAYS_Q,
     limit: int = _LIMIT_Q,
 ) -> list[ProductionRead]:
     """Individual rows. Operational roles only — corporate uses /analytics."""
@@ -532,16 +559,20 @@ def roll_quality(
 class ResinBatchCreate(BaseModel):
     """A batch out of a resin kettle.
 
-    `batch_no` is the identifier an impregnated roll will later reference, so
-    it is required and must be unique in the plant. Everything else is optional
-    because a kettle operator with a clipboard should be able to record the
-    batch now and the inspection result when it is known.
+    `batch_no` is the identifier an impregnated roll will later reference. It
+    is OPTIONAL: the resin register kept on the floor has not been confirmed
+    (V5 §6.2, §16), and a required field the operator cannot answer gets filled
+    with something rather than left empty. Where a number is given it must be
+    unique in the plant, because a roll points at it by name.
+
+    Everything else is optional too — a kettle operator with a clipboard should
+    be able to record the batch now and the inspection result when it is known.
     """
 
     id: UUID | None = None  # UUIDv7 from the client, so a retry is a no-op
     machine_id: int
     shift_id: int | None = None
-    batch_no: str = PField(min_length=1, max_length=64)
+    batch_no: str | None = PField(default=None, max_length=64)
     log_date: date | None = None
     quantity: Decimal | None = PField(default=None, ge=0)
     unit_of_measure: str | None = PField(default=None, max_length=16)
@@ -555,7 +586,7 @@ class ResinBatchRead(BaseModel):
     id: UUID
     machine_id: int
     machine_code: str
-    batch_no: str
+    batch_no: str | None
     log_date: date
     quantity: Decimal | None
     unit_of_measure: str | None
@@ -577,20 +608,25 @@ def log_resin_batch(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Machine not found")
     assert_visible(machine, principal)
 
-    batch_no = body.batch_no.strip()
-    existing = session.exec(
-        select(ResinBatch).where(
-            ResinBatch.plant_id == machine.plant_id, ResinBatch.batch_no == batch_no
-        )
-    ).first()
-    if existing is not None:
-        # 409 rather than a silent overwrite: the number is what a roll will
-        # point at, and quietly merging two batches under one number would make
-        # a later trace wrong without anyone noticing.
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            detail=f"Batch {batch_no} is already recorded on {machine.code}.",
-        )
+    batch_no = (body.batch_no or "").strip() or None
+    if batch_no is not None:
+        existing = session.exec(
+            select(ResinBatch).where(
+                ResinBatch.plant_id == machine.plant_id, ResinBatch.batch_no == batch_no
+            )
+        ).first()
+        if existing is not None:
+            # 409 rather than a silent overwrite: the number is what a roll
+            # will point at, and quietly merging two batches under one number
+            # would make a later trace wrong without anyone noticing.
+            #
+            # Only reachable when a number was given. Two unnumbered batches
+            # are two batches, not a collision — they simply cannot be traced
+            # to, which is the honest consequence of not having a number.
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail=f"Batch {batch_no} is already recorded on {machine.code}.",
+            )
 
     if (
         body.rejected_qty is not None

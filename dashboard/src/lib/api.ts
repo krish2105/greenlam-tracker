@@ -36,7 +36,7 @@ export interface Machine {
   name_hi: string | null;
   criticality: string;
   /** Which production form this machine gets. The floor dispatches on it. */
-  production_form: 'press' | 'resin' | 'impregnation' | 'general';
+  production_form: 'press' | 'resin' | 'impregnation' | 'ac_room' | 'general';
   hourly_downtime_cost: number | null;
   qr_short_code: string;
   is_active: boolean;
@@ -256,7 +256,20 @@ export interface Ticket {
   machine_code: string;
   section_id: number;
   section_name: string;
+  /**
+   * How urgent this ticket is NOW. Derived server-side from how much the
+   * machine matters (its A/B/C criticality), not from a priority anyone picked
+   * — V5 §5.8 removed that field from the raise form.
+   */
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
+  /**
+   * The OUTCOME: how long the repair actually took, banded per V5 §5.8.
+   * Null on every open ticket — which is exactly why `priority` above still
+   * exists and does the ranking.
+   */
+  criticality_calculated: 'Low' | 'Medium' | 'High' | null;
+  solve_minutes: number | null;
+  status: string;
   description: string;
   current_stage: number;
   stage: string;
@@ -273,6 +286,9 @@ export interface Ticket {
   root_cause: string | null;
   reopen_count: number;
   rating: number | null;
+  /** Set once the record has been corrected (V5 §7). Null means never. */
+  last_edited_at: string | null;
+  last_edited_by_name: string | null;
   escalation: Escalation;
   flags: string[];
   repeat_count: number;
@@ -465,9 +481,14 @@ export function rootCauseQuality(days = 30): Promise<RootCauseQuality> {
 
 export interface RaiseTicketInput {
   machine_id: number;
-  priority: string;
   description: string;
   raised_via?: string;
+  /**
+   * Not sent any more. The server derives urgency from the machine (V5 §5.8),
+   * and still accepts this key so a ticket queued offline by an older build of
+   * the app syncs rather than being rejected on a floor with no signal.
+   */
+  priority?: string;
 }
 
 export function raiseTicket(input: RaiseTicketInput): Promise<Ticket> {
@@ -601,6 +622,7 @@ export interface ProductionRow {
   log_date: string;
   machine_code: string;
   shift_name: string | null;
+  load_no: string | null;
   size: string;
   texture: string;
   produced_qty: number;
@@ -609,6 +631,8 @@ export interface ProductionRow {
   target_qty: number | null;
   reject_percent: number;
   logged_by_name: string;
+  last_edited_at: string | null;
+  last_edited_by_name: string | null;
 }
 
 export interface RejectReason {
@@ -646,9 +670,14 @@ export function listShifts(): Promise<Shift[]> {
 export interface LogProductionInput {
   machine_id: number;
   shift_id?: number | null;
-  /** Legacy free text, kept so the Excel import keeps round-tripping. */
-  size: string;
-  texture: string;
+  /**
+   * Legacy free text, kept so the Excel import keeps round-tripping.
+   *
+   * Optional because not every process has them — the AC room conditions
+   * treated paper for a load and makes neither a size nor a texture.
+   */
+  size?: string;
+  texture?: string;
   /** What the analysis actually groups by. */
   design_id?: number | null;
   size_id?: number | null;
@@ -656,6 +685,11 @@ export interface LogProductionInput {
   thickness_id?: number | null;
   /** The roll these sheets were pressed from — the traceability link. */
   roll_no?: string | null;
+  /**
+   * The SAP load plan this output belongs to. Required at the press and
+   * rejected there if absent; optional everywhere downstream.
+   */
+  load_no?: string | null;
   produced_qty: number;
   rejected_qty: number;
   reject_reason_id?: number | null;
@@ -899,7 +933,8 @@ export interface ResinBatchInput {
   id?: string;
   machine_id: number;
   shift_id?: number | null;
-  batch_no: string;
+  /** Optional — the resin register on the floor is not confirmed yet. */
+  batch_no?: string | null;
   log_date?: string | null;
   quantity?: string | null;
   unit_of_measure?: string | null;
@@ -913,7 +948,7 @@ export interface ResinBatch {
   id: string;
   machine_id: number;
   machine_code: string;
-  batch_no: string;
+  batch_no: string | null;
   log_date: string;
   quantity: string | null;
   unit_of_measure: string | null;
@@ -1088,4 +1123,69 @@ export function updateMachineSetup(
     method: 'PATCH',
     body: JSON.stringify(body),
   });
+}
+
+
+// ---------------------------------------------------------------------------
+// Corrections (V5 §7)
+// ---------------------------------------------------------------------------
+
+export interface CorrectionEntry {
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  reason: string | null;
+  corrected_by_name: string;
+  corrected_at: string;
+  /** True when an admin made the change after the self-edit window closed. */
+  outside_window: boolean;
+}
+
+export interface CorrectResult {
+  ok: boolean;
+  /** The fields that actually moved. `0` when the values sent matched what was there. */
+  applied: string[] | number;
+  outside_window?: boolean;
+  repeat?: boolean;
+  unchanged?: boolean;
+}
+
+/**
+ * Fix a mistake on a record that is already final.
+ *
+ * NOT the same as reopening a ticket. This changes what a field says and
+ * nothing else — the ticket stays closed, `closed_at` does not move, and the
+ * previous value is kept. Reopen is `reopenTicket`, and the two are separate
+ * buttons on purpose.
+ */
+export function correctTicket(
+  ticketId: string,
+  changes: Record<string, unknown>,
+  reason?: string,
+): Promise<CorrectResult> {
+  return request<CorrectResult>(`/tickets/${ticketId}/correct`, {
+    method: 'POST',
+    // A client-generated id, so a retry over a dropped connection cannot apply
+    // the same correction twice.
+    body: JSON.stringify({ changes, reason, submission_id: crypto.randomUUID() }),
+  });
+}
+
+export function ticketCorrections(ticketId: string): Promise<CorrectionEntry[]> {
+  return request<CorrectionEntry[]>(`/tickets/${ticketId}/corrections`);
+}
+
+export function correctProduction(
+  logId: string,
+  changes: Record<string, unknown>,
+  reason?: string,
+): Promise<CorrectResult> {
+  return request<CorrectResult>(`/production/${logId}/correct`, {
+    method: 'POST',
+    body: JSON.stringify({ changes, reason, submission_id: crypto.randomUUID() }),
+  });
+}
+
+export function productionCorrections(logId: string): Promise<CorrectionEntry[]> {
+  return request<CorrectionEntry[]>(`/production/${logId}/corrections`);
 }

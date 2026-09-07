@@ -56,6 +56,7 @@ export function LogProductionSheet({
   const [textureId, setTextureId] = useState<number | null>(null);
   const [thicknessId, setThicknessId] = useState<number | null>(null);
   const [rollNo, setRollNo] = useState('');
+  const [loadNo, setLoadNo] = useState('');
   const [produced, setProduced] = useState('');
   const [rejected, setRejected] = useState('0');
   const [reasonId, setReasonId] = useState<number | null>(null);
@@ -143,6 +144,11 @@ export function LogProductionSheet({
   }, [machines, query]);
 
   const selected = machines.find((m) => m.id === machineId) ?? null;
+  // The press is the one place a Load No. is required. It is what the press
+  // cycle is planned around, and it is the only handle a finished sheet has
+  // back to the load it belongs to — miss it here and every downstream row
+  // referencing the same load points at nothing.
+  const loadRequired = selected?.production_form === 'press';
   const rejectedCount = Number(rejected) || 0;
   const producedCount = Number(produced) || 0;
 
@@ -151,6 +157,7 @@ export function LogProductionSheet({
     if (!producedCount) return setError(t('production.errors.needQty'));
     if (rejectedCount > producedCount) return setError(t('production.errors.tooManyRejects'));
     if (rejectedCount > 0 && reasonId === null) return setError(t('production.errors.needReason'));
+    if (loadRequired && !loadNo.trim()) return setError(t('production.errors.needLoad'));
 
     setBusy(true);
     setError('');
@@ -165,6 +172,7 @@ export function LogProductionSheet({
         texture_id: textureId,
         thickness_id: thicknessId,
         roll_no: rollNo.trim() || null,
+        load_no: loadNo.trim() || null,
         produced_qty: producedCount,
         rejected_qty: rejectedCount,
         reject_reason_id: rejectedCount > 0 ? reasonId : null,
@@ -275,6 +283,44 @@ export function LogProductionSheet({
             </div>
           </fieldset>
         )}
+
+        {/* Placed above the counts, not below with the other optional fields.
+            It is the first thing on the load plan the operator is holding, and
+            on a press it is the reason this entry can be traced at all.
+            Uppercased on the way in because a load plan is printed in capitals
+            and "load-4471" would not match "LOAD-4471" in a filter. */}
+        <div>
+          <label
+            htmlFor="load-no"
+            className="mb-1 block font-medium"
+            style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)' }}
+          >
+            {loadRequired ? t('production.loadNo') : t('production.loadNoOptional')}
+          </label>
+          <input
+            id="load-no"
+            value={loadNo}
+            onChange={(e) => setLoadNo(e.target.value.toUpperCase())}
+            placeholder={t('production.loadNoPlaceholder')}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            required={loadRequired}
+            aria-describedby="load-no-hint"
+            className="arch w-full border px-3 py-3"
+            style={{
+              ...field,
+              borderColor: loadRequired && !loadNo.trim() ? 'var(--rust)' : 'var(--line-strong)',
+            }}
+          />
+          <p
+            id="load-no-hint"
+            className="mt-1"
+            style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}
+          >
+            {t('production.loadNoHint')}
+          </p>
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <NumberField

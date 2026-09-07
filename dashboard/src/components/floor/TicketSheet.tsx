@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { formatDuration, scoreRootCause } from '@greenlam/core';
 
 import * as api from '../../lib/api';
+import { CorrectSheet } from './CorrectSheet';
 import { Sheet } from '../Sheet';
 
 interface TicketSheetProps {
@@ -40,6 +41,7 @@ export function TicketSheet({ ticketId, onClose, onChanged }: TicketSheetProps) 
   const [why3, setWhy3] = useState('');
   const [prevention, setPrevention] = useState('');
   const [rating, setRating] = useState(0);
+  const [correcting, setCorrecting] = useState(false);
 
   useEffect(() => {
     void api.getTicket(ticketId).then(setTicket).catch(() => setError(t('ticket.loadFailed')));
@@ -79,7 +81,34 @@ export function TicketSheet({ ticketId, onClose, onChanged }: TicketSheetProps) 
             >
               {ticket.machine_code}
             </h3>
+            {/* Two different facts, and they are never shown as one badge.
+                The plate is how much this machine matters, which is known
+                before anything breaks and is what ranks the queue. The second
+                appears only once the repair is over and says how long the work
+                actually took. A ticket mid-repair shows one; a resolved one
+                shows both, and they routinely disagree — a quick fix on a
+                critical press is exactly that. */}
             <span className="plate">{ticket.priority}</span>
+            {ticket.criticality_calculated && (
+              <span
+                className="plate"
+                title={t('ticket.solveTime', { minutes: ticket.solve_minutes ?? 0 })}
+              >
+                {t(`ticket.criticality.${ticket.criticality_calculated}`)}
+              </span>
+            )}
+            {/* V5 §7: an amended record is marked wherever it is shown, so a
+                number nobody expected to change is never read as the one that
+                was logged at the time. */}
+            {ticket.last_edited_at && (
+              <span
+                className="plate"
+                title={t('ticket.editedBy', { name: ticket.last_edited_by_name ?? '—' })}
+                style={{ borderColor: 'var(--rust)', color: 'var(--rust)' }}
+              >
+                {t('ticket.edited')}
+              </span>
+            )}
           </div>
           <p className="mt-1" style={{ color: 'var(--ink)' }}>
             {ticket.description}
@@ -259,6 +288,11 @@ export function TicketSheet({ ticketId, onClose, onChanged }: TicketSheetProps) 
                   duration: formatDuration(ticket.downtime_minutes ?? 0),
                 })}
               </p>
+              {/* Two different actions, two different sentences.
+                  Reopen says the machine is still broken and puts this back on
+                  the breakdown board. Correct says a word was wrong. They sit
+                  together because that is where somebody looks for either, and
+                  they are never one button with a mode. */}
               <button
                 type="button"
                 onClick={() => void advance({ type: 'REOPENED' })}
@@ -268,10 +302,37 @@ export function TicketSheet({ ticketId, onClose, onChanged }: TicketSheetProps) 
               >
                 {t('ticket.reopen')}
               </button>
+              <button
+                type="button"
+                onClick={() => setCorrecting(true)}
+                disabled={busy}
+                className="arch w-full border py-3 font-medium disabled:opacity-60"
+                style={{ borderColor: 'var(--line)', color: 'var(--ink-muted)' }}
+              >
+                {t('ticket.correct')}
+              </button>
+              <p style={{ color: 'var(--ink-muted)', fontSize: 'var(--text-xs)' }}>
+                {t('ticket.correctHint')}
+              </p>
             </div>
           )}
         </div>
       </div>
+
+      {correcting && (
+        <CorrectSheet
+          ticket={ticket}
+          onClose={() => setCorrecting(false)}
+          onCorrected={() => {
+            setCorrecting(false);
+            // Reload the ticket, not just the list behind it. A correction
+            // that left the sheet showing the value it just replaced is the
+            // one moment somebody would reasonably conclude it had not saved.
+            void api.getTicket(ticketId).then(setTicket).catch(() => undefined);
+            onChanged();
+          }}
+        />
+      )}
     </Sheet>
   );
 }

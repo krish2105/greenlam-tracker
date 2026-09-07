@@ -135,7 +135,17 @@
     "closed": "Closed. Machine was down {{duration}}.",
     "reopen": "Reopen — it is not fixed",
     "loadFailed": "Could not open that ticket.",
-    "actionFailed": "That did not go through. Try again."
+    "actionFailed": "That did not go through. Try again.",
+    "criticality": {
+      "Low": "Low · repair",
+      "Medium": "Medium · repair",
+      "High": "High · repair"
+    },
+    "solveTime": "Repair took {{minutes}} min of active work, excluding time spent waiting.",
+    "edited": "Edited",
+    "editedBy": "Amended by {{name}} after it was logged.",
+    "correct": "Correct a mistake",
+    "correctHint": "Changes what a field says. The ticket stays closed and the machine stays fixed."
   },
   "board": {
     "title": "Dashboard",
@@ -335,7 +345,8 @@
       "needQty": "Enter how many sheets were produced.",
       "needReason": "Choose a reject reason — a rejection with no reason cannot be acted on.",
       "tooManyRejects": "Rejected cannot be more than produced.",
-      "failed": "Could not save that. Try again."
+      "failed": "Could not save that. Try again.",
+      "needLoad": "A press entry needs its Load No. — it is what ties these sheets to the load."
     },
     "paretoPoint": "{{reason}}: {{sheets}} sheets, {{percent}}% cumulative",
     "share": "Share",
@@ -356,8 +367,13 @@
       "press": "Sheets",
       "resin": "Batch",
       "impregnation": "Paper roll",
-      "general": "Sheets"
-    }
+      "general": "Sheets",
+      "ac_room": "AC room"
+    },
+    "loadNo": "Load No.",
+    "loadNoOptional": "Load No. (if you have it)",
+    "loadNoPlaceholder": "From the load plan",
+    "loadNoHint": "The number on the SAP load plan. It is how these sheets are traced back to the load."
   },
   "plantMap": {
     "title": "The plant, by where the time goes",
@@ -563,6 +579,48 @@
     "rejected": "Rejected",
     "rejectedTooMany": "More than the batch quantity.",
     "notes": "Notes",
-    "save": "Save batch"
+    "save": "Save batch",
+    "batchNoAbsent": "Leave it empty if the batch has no number. It can still be recorded — it just cannot be traced to."
+  },
+  "acRoom": {
+    "title": "AC room — {{machine}}",
+    "loadHint": "The load this treated paper is being assembled for.",
+    "processed": "Sheets processed"
+  },
+  "correct": {
+    "title": "Correct {{ticket}}",
+    "blurb": "Change what was written down. This does not reopen the ticket — the machine stays fixed and the times do not move. Whatever you change is kept alongside what it said before.",
+    "reason": "Why the change (optional)",
+    "reasonPlaceholder": "e.g. typed the wrong machine",
+    "save": "Save the correction",
+    "saving": "Saving…",
+    "failed": "Could not save that. Try again.",
+    "historyTitle": "Already corrected",
+    "historyLine": "{{name}} changed {{field}}",
+    "fields": {
+      "description": "What happened",
+      "immediate_correction": "What got it running",
+      "why_1": "Why 1",
+      "why_2": "Why 2",
+      "why_3": "Why 3",
+      "preventive_action": "What stops it happening again",
+      "produced_qty": "Produced",
+      "rejected_qty": "Rejected",
+      "load_no": "Load No.",
+      "reject_reason_id": "Reject reason",
+      "shift_id": "Shift",
+      "log_date": "Date"
+    },
+    "productionTitle": "Correct — {{machine}}",
+    "productionBlurb": "Change what was entered. The entry stays where it is; what it said before is kept.",
+    "productionReasonPlaceholder": "e.g. missed a zero"
+  },
+  "productionLog": {
+    "title": "Logged today",
+    "showWeek": "Show the last week",
+    "showToday": "Show today only",
+    "empty": "Nothing logged yet.",
+    "counts": "{{produced}} made · {{rejected}} rejected",
+    "correct": "Correct this entry"
   }
 }

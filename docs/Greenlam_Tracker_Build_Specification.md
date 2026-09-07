@@ -552,56 +552,53 @@ with a wrong clock.
 
 ## 13. Open questions
 
-Nothing below is invented in this document. Each blocks the work named beside
-it.
+**Superseded in large part by `Greenlam_Tracker_Master_Build_Specification_V5.md`
+(7 September 2026).** V5 answers fifteen of the twenty-three questions below, and
+answers the one that blocked the most — the material code master — by removing
+the requirement rather than filling it in. What remains is listed second.
 
-**Blocks everything**
+### Answered by V5
 
-| # | Question |
-|---|---|
-| 11-A | On-prem plant server, or Microsoft cloud? Graph API and Conditional Access contradict "company server". |
-| 11-B | How will HTTPS with a trusted certificate be provided on the plant network? Without it there is no installable app and no offline. |
-| 6-D | The material code master — codes and their attributes. All of Section 6 depends on it. |
+| # | Question | V5's answer |
+|---|---|---|
+| 6-D | The material code master | **Deleted.** SAP stays external; a manually typed **Load No.** is the traceability key (§6.2A). Operators never enter the 60+ codes inside a load. |
+| 3-A | The three Dashboard sub-scopes | There are none. **Dashboard is one grant**; the three views live inside it (§3). |
+| 3-B | Company-device enforcement | Microsoft Entra ID Conditional Access, falling back to IP allow-listing on the dashboard route (§3). |
+| 3-C | Typed operator name, or from the login | **From the login, everywhere.** Phones are personal, not shared (§3). |
+| 4-A | PIN or company SSO | Both, split by surface: self-signup + PIN on the floor, Entra SSO for Dashboard and Admin (§12). |
+| 5-A | Priority: removed or replaced | **Removed.** Criticality is calculated from solve time after the repair (§5.8). |
+| 5-B | Editable breakdown date/time | Never. System clock only; a wrong stamp is fixed through the tagged correction path (§5.5). |
+| 5-E | Repair Severity thresholds | Press 30 / 60 min, everything else 60 / 120 min, admin-configurable (§5.8, §16). |
+| 6-A | The real area list | The Machine Master List (§4). |
+| 6-B | OK / Not OK per sheet or per batch | Counts per entry, with a reason, not per sheet (§6.2). |
+| 6-C | Resin batch number format | **Made optional** until the floor's actual resin register is confirmed (§6.2, §16). |
+| 7-A | Who may Correct, and any freeze period | The submitter, for 5 h after a ticket fully closes or 10 h after a production entry is submitted; admin at any time (§7). |
+| 8-A | Excel via Graph API or a file share | Microsoft Graph, with in-place row updates keyed on a stable id (§7, §8). |
+| 9-A | Notification route | Web Push (VAPID) through the installed PWA; iOS needs Add to Home Screen (§9). |
+| 11-A | On-prem plant server or Microsoft cloud | **Neither purely.** Internet-facing and reachable over mobile data; the host (TCS or otherwise) is still open (§14). |
 
-**Blocks the access model**
+### Still open
 
-| # | Question |
-|---|---|
-| 3-A | The three Dashboard sub-scopes — what are they? |
-| 3-B | Company-device enforcement mechanism. |
-| 3-C | Is the operator name typed, or taken from the login? Are phones shared? |
-| 3-D | The Field/Trade list. |
-| 4-A | Is a 6-digit PIN acceptable, or is company SSO required? |
+| # | Question | Blocks |
+|---|---|---|
+| 11-C | Server specification, who administers it, backups | Nothing yet — but it decides where this runs |
+| 11-B | Who provides the TLS certificate and the hostname | Install and offline on real phones |
+| 5-C | Acknowledgement targets | Escalation timings are still placeholders |
+| 5-D | The no-follow-up-production window | The closure-integrity flag. V5 §16 defers it deliberately until the trial produces a baseline |
+| 5-F | Photo retention and storage | Attachment storage, which nothing writes to yet |
+| 6-E | RC and VC limits per paper grade | Out-of-spec warnings on the roll form |
+| 3-D | The Field/Trade list | Nothing. Dropped from V5 entirely — confirm it is dead rather than forgotten |
+| — | Criticality A/B/C per machine | **The live queue's ordering.** Every machine is seeded B, so every open ticket ranks the same. This is now the highest-value missing answer in the whole system |
 
-**Blocks the maintenance numbers**
+### Contradictions V5 does not resolve
 
-| # | Question |
-|---|---|
-| 5-A | Priority: removed, or replaced by machine criticality? *(recommendation in 5.1)* |
-| 5-B | Is the breakdown date/time editable on raise? |
-| 5-C | Acknowledgement targets. |
-| 5-D | The no-follow-up-production window. |
-| 5-E | Repair Severity thresholds. |
-| 5-F | Photo retention and storage. |
-
-**Blocks production**
-
-| # | Question |
-|---|---|
-| 6-A | The real area list. |
-| 6-B | OK / Not OK — per sheet or per batch? |
-| 6-C | Resin batch number — who generates it, what format? |
-| 6-E | RC and VC limits per paper grade. |
-
-**Blocks the rest**
-
-| # | Question |
-|---|---|
-| 7-A | Who may Correct an entry, and is there a freeze period? |
-| 8-A | Excel via Graph API, or a file share? Follows from 11-A. |
-| 9-A | Notification route, given that web push needs internet. *(recommendation in Section 9)* |
-| 10-A | How live is "live"? |
-| 11-C | Server specification, who administers it, and the backup arrangement. |
+- **"Hundreds to thousands of concurrent users" against the current hosting.**
+  Render's free tier is 512 MB, 0.1 CPU, and sleeps after 15 minutes idle. Fine
+  for the synthetic demo, wrong for the plant. A hosting decision, not something
+  the code can absorb.
+- **Full close.** V5 §5.4 says filing the RCA closes the ticket automatically.
+  The build still asks for a separate Close with a resolution rating, which V5
+  does not mention. One of the two has to give.
 
 ---
 

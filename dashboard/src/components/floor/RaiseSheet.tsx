@@ -1,9 +1,10 @@
 /**
  * Raise a breakdown. The thirty-second path.
  *
- * Everything optional has been removed from the first screen. Machine,
- * priority, what is wrong — submit. Section is inferred from the machine,
- * shift and category can be filled later by whoever works it.
+ * Everything optional has been removed from the first screen. Machine, what
+ * is wrong — submit. Section is inferred from the machine, shift and category
+ * can be filled later by whoever works it, and priority is not asked at all
+ * any more (V5 §5.8).
  *
  * The prototype asked for section, machine, location, category, priority,
  * description and name — seven fields, and the section had to be picked before
@@ -40,14 +41,10 @@ export function RaiseSheet({
   // press is the worst-placed person in the plant to grade its severity, and
   // within a month everything is Critical.
   //
-  // Criticality already lives on the machine, set once by someone with the
-  // whole plant in view. A critical machine makes a High ticket; the rest make
-  // Medium. Escalation still has something to sort on.
-  //
-  // Provisional: open question 5-A in the build specification. One line to
-  // change if Greenlam wants the field back.
-  const priority =
-    machines.find((m) => m.id === machineId)?.criticality === 'A' ? 'High' : 'Medium';
+  // No priority here, and none sent. V5 §5.8 settled open question 5-A by
+  // removing the field: nobody picks how urgent a breakdown is, the server
+  // ranks it by how much the machine matters, and the criticality that gets
+  // reported is measured from the finished repair.
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -93,7 +90,6 @@ export function RaiseSheet({
       onRaised(
         await api.raiseTicket({
           machine_id: machineId,
-          priority,
           description: description.trim(),
           // Recorded so the pilot review can compare scanned against typed —
           // "68% raised by scanning, 34s against 81s" is what gets a rollout

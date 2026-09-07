@@ -15,14 +15,14 @@
  *
  * ALL OR NOTHING, AND THE PROGRESS BAR SAYS WHICH
  *
- * A cost total covering 9 of 33 machines looks complete and is silently low —
+ * A cost total covering 9 of 42 machines looks complete and is silently low —
  * so the server withholds it entirely until every machine that went down has a
  * rate. That is the right call and a frustrating one if the screen does not
  * show how far off you are, hence the counters at the top.
  *
  * BULK FILL IS NOT A CONVENIENCE
  *
- * 33 machines times three fields is 99 boxes, and most of a plant shares one
+ * 42 machines times three fields is 126 boxes, and most of a plant shares one
  * schedule. Without "apply to all" this screen gets abandoned halfway, which
  * leaves the system in the exact partial state that shows nothing. The tedium
  * is the failure mode.

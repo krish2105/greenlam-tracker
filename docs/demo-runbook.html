@@ -258,7 +258,7 @@ export PIN_PEPPER="local-dev-pepper-padded-out-to-32-bytes-ok"</pre>
       <h3>Create the tables and fill them with demo data</h3>
 <pre>.venv/bin/python -m alembic upgrade head
 .venv/bin/python -m app.seed</pre>
-      <p style="margin:0 0 .5rem">The seed prints every sign-in you can use. It creates 33 machines, 10 people, and 287 breakdowns spread across 90 days. Then start the server and <strong>leave this terminal running</strong>:</p>
+      <p style="margin:0 0 .5rem">The seed prints every sign-in you can use. It creates 42 machines, 10 people, and 287 breakdowns spread across 90 days. Then start the server and <strong>leave this terminal running</strong>:</p>
 <pre>.venv/bin/uvicorn app.main:app --port 8000</pre>
     </div></li>
 

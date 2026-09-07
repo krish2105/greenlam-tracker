@@ -65,6 +65,40 @@ BD_HEADERS = [
 ]
 
 
+# Appended AFTER the plant's own headers, never mixed into them.
+#
+# V5 §7 requires a correction to be visible everywhere the number is, and §7's
+# Excel rule needs a stable id per row so a future Graph implementation can
+# overwrite one line instead of appending a second copy of it.
+#
+# Appending is safe where reordering is not: a pivot table or Power Query step
+# pointing at "BD Details" still finds it in the same column. A tidy-up that
+# moved the existing headers would silently break work other people built —
+# see the module docstring.
+AUDIT_HEADERS = ["Id", "Edited", "Last Edited By", "Last Edited At"]
+
+# The id column is written and then hidden. It is a UUID nobody reads and its
+# only job is to let a row be found again; left visible it is a column of noise
+# in front of every person who opens the workbook.
+ID_COLUMN_IS_HIDDEN = True
+
+
+def audit_cells(row: dict) -> list:
+    """The four appended values for one record."""
+    edited_at = row.get("last_edited_at")
+    return [
+        str(row["id"]),
+        "Yes" if edited_at else "No",
+        row.get("last_edited_by_name") or "",
+        edited_at.strftime("%Y-%m-%d %H:%M") if edited_at else "",
+    ]
+
+
+def hide_id_column(ws: Worksheet, headers: list[str]) -> None:
+    if ID_COLUMN_IS_HIDDEN and "Id" in headers:
+        ws.column_dimensions[get_column_letter(headers.index("Id") + 1)].hidden = True
+
+
 def connect() -> psycopg.Connection:
     url = os.environ.get("EXPORT_DATABASE_URL") or os.environ.get("DATABASE_URL")
     if not url:
@@ -205,14 +239,16 @@ def sheet_bd_tracker(wb: Workbook, conn: psycopg.Connection, plant_id: int) -> N
     data = rows(
         conn,
         """
-        SELECT t.raised_at, s.name AS section, m.code AS machine, c.name AS category,
+        SELECT t.id, t.raised_at, s.name AS section, m.code AS machine, c.name AS category,
                t.description, t.immediate_correction, t.root_cause, t.preventive_action,
                t.sheets_after_sanding,
+               t.last_edited_at, e.name AS last_edited_by_name,
                EXTRACT(EPOCH FROM (t.resolved_at - t.raised_at))/60 AS bd_min
         FROM tickets t
         JOIN machines m ON m.id = t.machine_id
         JOIN sections s ON s.id = t.section_id
         LEFT JOIN categories c ON c.id = t.category_id
+        LEFT JOIN users e ON e.id = t.last_edited_by
         WHERE t.plant_id = %s
         ORDER BY t.raised_at
         """,
@@ -221,7 +257,7 @@ def sheet_bd_tracker(wb: Workbook, conn: psycopg.Connection, plant_id: int) -> N
 
     write_table(
         ws,
-        BD_HEADERS,
+        BD_HEADERS + AUDIT_HEADERS,
         [
             [
                 i + 1,
@@ -237,10 +273,12 @@ def sheet_bd_tracker(wb: Workbook, conn: psycopg.Connection, plant_id: int) -> N
                 r["root_cause"] or "",
                 r["preventive_action"] or "",
                 r["sheets_after_sanding"] or "",
+                *audit_cells(r),
             ]
             for i, r in enumerate(data)
         ],
     )
+    hide_id_column(ws, BD_HEADERS + AUDIT_HEADERS)
 
 
 def sheet_machine_summary(wb: Workbook, conn: psycopg.Connection, plant_id: int) -> None:
@@ -299,34 +337,46 @@ def sheet_production(wb: Workbook, conn: psycopg.Connection, plant_id: int) -> N
     data = rows(
         conn,
         """
-        SELECT p.log_date, sh.name AS shift, m.code AS machine, p.size, p.texture,
-               p.produced_qty, p.rejected_qty, r.name AS reason, u.name AS logged_by
+        SELECT p.id, p.log_date, sh.name AS shift, m.code AS machine, p.load_no,
+               p.size, p.texture,
+               p.produced_qty, p.rejected_qty, r.name AS reason, u.name AS logged_by,
+               p.last_edited_at, e.name AS last_edited_by_name
         FROM production_logs p
         LEFT JOIN machines m ON m.id = p.machine_id
         LEFT JOIN shifts sh ON sh.id = p.shift_id
         LEFT JOIN reject_reasons r ON r.id = p.reject_reason_id
         LEFT JOIN users u ON u.id = p.logged_by
+        LEFT JOIN users e ON e.id = p.last_edited_by
         WHERE p.plant_id = %s
         ORDER BY p.log_date DESC
         LIMIT 20000
         """,
         (plant_id,),
     )
+    # Load No. sits third, right after the machine. V5 §8 wants a load's whole
+    # history filterable in Excel without storing a single SAP material code,
+    # and a column buried at the far right is one people never find.
+    headers = [
+        "Date", "Shift", "Machine", "Load No.", "Size", "Texture", "Produced",
+        "Rejected", "Reject Reason", "Reject %", "Logged By",
+    ] + AUDIT_HEADERS
     write_table(
         ws,
-        ["Date", "Shift", "Machine", "Size", "Texture", "Produced", "Rejected",
-         "Reject Reason", "Reject %", "Logged By"],
+        headers,
         [
             [
-                r["log_date"], r["shift"] or "", r["machine"] or "", r["size"], r["texture"],
+                r["log_date"], r["shift"] or "", r["machine"] or "", r["load_no"] or "",
+                r["size"], r["texture"],
                 r["produced_qty"], r["rejected_qty"], r["reason"] or "",
                 round(100 * r["rejected_qty"] / (r["produced_qty"] + r["rejected_qty"]), 2)
                 if (r["produced_qty"] + r["rejected_qty"]) else 0,
                 r["logged_by"] or "",
+                *audit_cells(r),
             ]
             for r in data
         ],
     )
+    hide_id_column(ws, headers)
 
 
 def sheet_charts(wb: Workbook, conn: psycopg.Connection, plant_id: int) -> None:

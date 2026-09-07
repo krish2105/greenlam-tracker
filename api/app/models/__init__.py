@@ -4,6 +4,7 @@ shared metadata, which is what Alembic's env.py autogenerate compares against.
 
 from ..roles import ROLES
 from .base import PlantScoped, Timestamped, utcnow
+from .corrections import ProductionCorrection, TicketCorrection
 from .maintenance import (
     DOWNTIME_TYPES,
     EVENT_TYPES,
@@ -42,6 +43,7 @@ from .org import (
     Category,
     Machine,
     Plant,
+    PlantSetting,
     QrScan,
     RejectReason,
     Section,
@@ -54,6 +56,9 @@ from .production import ImpregnationLog, ProductionLog, ResinBatch
 __all__ = [
     # org
     "Plant",
+    "ProductionCorrection",
+    "TicketCorrection",
+    "PlantSetting",
     "Unit",
     "Section",
     "Machine",

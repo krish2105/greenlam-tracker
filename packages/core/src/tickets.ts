@@ -373,3 +373,63 @@ export function shouldReopenRatherThanRaise(
   if (!correctionCompleteAt) return false;
   return minutesBetween(correctionCompleteAt, nowIso) <= REOPEN_WINDOW_HOURS * 60;
 }
+
+// ---------------------------------------------------------------------------
+// Criticality — the outcome, not the guess
+// ---------------------------------------------------------------------------
+
+/** Low, Medium or High. Assigned by the clock, never by a person. */
+export type CalculatedCriticality = 'Low' | 'Medium' | 'High';
+
+/**
+ * The two boundaries that split solve time into three bands, in minutes.
+ *
+ * Held as data rather than constants because V5 §16 makes them admin-editable:
+ * the defaults below are a hypothesis about this plant, and the trial exists
+ * partly to test it.
+ */
+export interface CriticalityThresholds {
+  /** At or under this many minutes: Low. */
+  lowMaxMinutes: number;
+  /** Above `lowMaxMinutes` and at or under this: Medium. Above it: High. */
+  mediumMaxMinutes: number;
+}
+
+/**
+ * V5 §5.8's defaults. A press stopping is worth more per minute than anything
+ * else on the floor, so its bands are half as wide.
+ */
+export const DEFAULT_CRITICALITY_THRESHOLDS: Record<'press' | 'other', CriticalityThresholds> = {
+  press: { lowMaxMinutes: 30, mediumMaxMinutes: 60 },
+  other: { lowMaxMinutes: 60, mediumMaxMinutes: 120 },
+};
+
+/**
+ * Classify a finished repair by how long the work actually took.
+ *
+ * The input is SOLVE time, not elapsed time — waiting for a part is not slow
+ * work, and a repair that took twenty minutes across two days of waiting for a
+ * bearing is a twenty-minute repair. `solveTimeMinutes` above does that
+ * subtraction; this only reads the result.
+ *
+ * Returns null while the repair is unfinished. That is the whole reason this
+ * cannot rank a live queue: at the moment somebody is deciding which of four
+ * open tickets to walk to, every one of them answers null here. Machine
+ * criticality (A/B/C) is what ranks those.
+ *
+ * Boundaries are inclusive at the bottom of each band: exactly 30 minutes on a
+ * press is Low, not Medium. V5 §5.8 writes "Under 30 min / 30 min – 1 hr",
+ * which puts the boundary value in the upper band — but a repair timed at
+ * exactly the threshold is the one case where the two readings differ, and
+ * classifying it as the gentler of the two is the choice that does not inflate
+ * the High count on a rounding artefact.
+ */
+export function criticalityFromSolveTime(
+  solveMinutes: number | null | undefined,
+  thresholds: CriticalityThresholds,
+): CalculatedCriticality | null {
+  if (solveMinutes === null || solveMinutes === undefined) return null;
+  if (solveMinutes <= thresholds.lowMaxMinutes) return 'Low';
+  if (solveMinutes <= thresholds.mediumMaxMinutes) return 'Medium';
+  return 'High';
+}

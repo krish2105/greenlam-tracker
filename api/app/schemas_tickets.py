@@ -19,6 +19,10 @@ class TicketCreate(BaseModel):
     id: UUID | None = None
     machine_id: int
     category_id: int | None = None
+    # ACCEPTED AND IGNORED. V5 §5.8 removed the question; the router derives
+    # urgency from the machine instead. Kept on the schema so a ticket queued
+    # offline by an older build of the app still syncs — rejecting it would
+    # strand a real breakdown report on a phone.
     priority: str = Field(default="Medium", pattern=r"^(Low|Medium|High|Critical)$")
     description: str = Field(min_length=1)
     location: str | None = Field(default=None, max_length=160)
@@ -84,7 +88,17 @@ class TicketRead(BaseModel):
     section_id: int
     section_name: str
     category_id: int | None
+    # How urgent this ticket is NOW, derived from how much the machine matters
+    # (machines.criticality A/B/C). Not the old raise-time priority — V5 §5.8
+    # removed that — and not `criticality_calculated`, which does not exist
+    # until the repair is over.
     priority: str
+    # The OUTCOME: how long the repair actually took, banded. Null on every
+    # open ticket, and on any resolved ticket that never recorded a correction
+    # start (the imported register rows are all like that).
+    solve_minutes: float | None
+    criticality_calculated: str | None
+    status: str
     description: str
     location: str | None
     downtime_type: str
@@ -110,6 +124,12 @@ class TicketRead(BaseModel):
 
     reopen_count: int
     rating: int | None
+
+    # V5 §7: an amended record is marked wherever it is shown. Null means it
+    # has never been corrected — there is no separate boolean, because two
+    # columns that must agree eventually will not.
+    last_edited_at: datetime | None
+    last_edited_by_name: str | None
 
     # Derived on read, never stored.
     escalation: EscalationRead

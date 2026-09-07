@@ -112,7 +112,7 @@ export function LogRollSheet({
       api.listSizes(),
       api.listShifts(),
     ]).then(([m, g, c, s, sh]) => {
-      // Only impregnators. Offering all 33 machines would invite a roll being
+      // Only impregnators. Offering all 42 machines would invite a roll being
       // logged against a press, which corrupts the traceability chain at its
       // source.
       setMachines(m.filter((x) => x.code.toUpperCase().startsWith('IMP-')));
@@ -123,6 +123,8 @@ export function LogRollSheet({
     });
     rollRef.current?.focus();
   }, []);
+
+  const numberedBatches = useMemo(() => batches.filter((b) => b.batch_no), [batches]);
 
   const grade = useMemo(() => grades.find((g) => g.id === gradeId), [grades, gradeId]);
   const warnings = useMemo(
@@ -275,8 +277,14 @@ export function LogRollSheet({
 
         {/* The step that makes the chain complete: resin batch -> this roll ->
             the sheets pressed from it. Only offered when batches exist, so a
-            plant that has not started recording them sees nothing. */}
-        {batches.length > 0 && (
+            plant that has not started recording them sees nothing.
+
+            Only NUMBERED batches are offered. A batch recorded without a number
+            is legitimate (V5 §6.2) but cannot be picked out of a list — five
+            entries reading "· Resin Kettle-3" are five coin flips, and a roll
+            pointed at the wrong one is a false trace, which is worse than no
+            trace. */}
+        {numberedBatches.length > 0 && (
           <div>
             <label htmlFor="roll-resin" className="mb-1 block font-medium" style={labelStyle}>
               {t('roll.resinBatch')}
@@ -289,7 +297,7 @@ export function LogRollSheet({
               style={field}
             >
               <option value="">{t('roll.resinBatchNone')}</option>
-              {batches.map((b) => (
+              {numberedBatches.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.batch_no} · {b.machine_code}
                 </option>

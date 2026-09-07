@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func
 from sqlmodel import select
 
-from .. import analytics, lifecycle
+from .. import analytics, classify, lifecycle
 from ..deps import (
     CanRaise,
     Operational,
@@ -114,17 +114,28 @@ def _machine_index(session: SessionDep, principal: Principal):
 
 
 def _to_read(
-    ticket: Ticket, machine: Machine, section: Section, raiser_name: str, repeat: int, now: datetime
+    ticket: Ticket,
+    machine: Machine,
+    section: Section,
+    raiser_name: str,
+    repeat: int,
+    now: datetime,
+    editor_name: str | None = None,
 ) -> TicketRead:
+    # Ranked by how much the MACHINE matters, not by a priority somebody
+    # picked at raise time — V5 §5.8 removed that judgement call, and the
+    # calculated criticality that replaced it does not exist until the repair
+    # is finished. See lifecycle.urgency_of_machine.
+    urgency = lifecycle.urgency_of_machine(machine.criticality)
     esc = lifecycle.escalation_of(
-        priority=ticket.priority,
+        priority=urgency,
         raised_at=ticket.raised_at,
         acked_at=ticket.acked_at,
         current_stage=ticket.current_stage,
         now=now,
     )
     flags = lifecycle.flags_for(
-        priority=ticket.priority,
+        priority=urgency,
         raised_at=ticket.raised_at,
         acked_at=ticket.acked_at,
         current_stage=ticket.current_stage,
@@ -144,7 +155,10 @@ def _to_read(
         section_id=ticket.section_id,
         section_name=section.name,
         category_id=ticket.category_id,
-        priority=ticket.priority,
+        priority=urgency,
+        solve_minutes=ticket.solve_minutes,
+        criticality_calculated=ticket.criticality_calculated,
+        status=ticket.status,
         description=ticket.description,
         location=ticket.location,
         downtime_type=ticket.downtime_type,
@@ -166,6 +180,8 @@ def _to_read(
         sheets_after_sanding=ticket.sheets_after_sanding,
         reopen_count=ticket.reopen_count,
         rating=ticket.rating,
+        last_edited_at=ticket.last_edited_at,
+        last_edited_by_name=editor_name,
         escalation=EscalationRead(
             level=esc.level,
             waiting_minutes=round(esc.waiting_minutes, 1),
@@ -228,7 +244,15 @@ def raise_ticket(body: TicketCreate, principal: CanRaise, session: SessionDep) -
         shift_id=body.shift_id,
         category_id=body.category_id,
         raised_by=principal.user_id,
-        priority=body.priority,
+        # Derived from the machine, not taken from `body.priority`.
+        #
+        # V5 §5.8 removed the priority question from the raise form, and the
+        # app already stopped asking it — but a value the client still sends is
+        # a value the client can get wrong, and a machine reclassified B->A in
+        # setup would leave every ticket raised before that carrying the old
+        # answer. Storing it keeps the Excel export and the register importer
+        # working; `_to_read` recomputes it live for anything on screen.
+        priority=lifecycle.urgency_of_machine(machine.criticality),
         description=body.description.strip(),
         location=body.location,
         downtime_type=body.downtime_type,
@@ -292,6 +316,7 @@ def list_tickets(
             names.get(t.raised_by, "—"),
             repeats.get((t.machine_id, t.category_id), 1),
             now,
+            names.get(t.last_edited_by) if t.last_edited_by else None,
         )
         for t in tickets
         if t.machine_id in machines and t.section_id in sections
@@ -327,7 +352,7 @@ def board_analytics(principal: PrincipalDep, session: SessionDep, days: int = _D
             section_id=t.section_id,
             section_name=section.name,
             category=categories.get(t.category_id, "Uncategorised"),
-            priority=t.priority,
+            priority=lifecycle.urgency_of_machine(machine.criticality),
             downtime_type=t.downtime_type,
             current_stage=t.current_stage,
             raised_at=t.raised_at,
@@ -408,7 +433,7 @@ def board_summary(principal: PrincipalDep, session: SessionDep) -> BoardSummary:
     """
     now = utcnow()
     tickets = session.exec(scope(Ticket, principal)).all()
-    _, sections = _machine_index(session, principal)
+    machines, sections = _machine_index(session, principal)
 
     open_total = escalated_total = closed_total = 0
     downtime_total = 0.0
@@ -426,7 +451,9 @@ def board_summary(principal: PrincipalDep, session: SessionDep) -> BoardSummary:
             bucket["open"] += 1
             if (
                 lifecycle.escalation_of(
-                    priority=t.priority,
+                    priority=lifecycle.urgency_of_machine(
+                        m.criticality if (m := machines.get(t.machine_id)) else None
+                    ),
                     raised_at=t.raised_at,
                     acked_at=t.acked_at,
                     current_stage=t.current_stage,
@@ -500,8 +527,9 @@ def exception_feed(
             continue
 
         repeat = repeats.get((t.machine_id, t.category_id), 1)
+        urgency = lifecycle.urgency_of_machine(machine.criticality)
         flags = lifecycle.flags_for(
-            priority=t.priority,
+            priority=urgency,
             raised_at=t.raised_at,
             acked_at=t.acked_at,
             current_stage=t.current_stage,
@@ -515,7 +543,7 @@ def exception_feed(
             escalated_total += 1
 
         severity = lifecycle.severity_score(
-            priority=t.priority,
+            priority=urgency,
             raised_at=t.raised_at,
             acked_at=t.acked_at,
             current_stage=t.current_stage,
@@ -544,7 +572,7 @@ def exception_feed(
                     params=params,
                     detail=detail,
                     since=t.raised_at,
-                    priority=t.priority,
+                    priority=urgency,
                 ),
             )
         )
@@ -674,11 +702,12 @@ def handover(
     machines, _ = _machine_index(session, principal)
 
     def line(t: Ticket, note: str) -> HandoverTicket:
+        machine = machines.get(t.machine_id)
         return HandoverTicket(
             ticket_no=t.ticket_no,
-            machine_code=machines[t.machine_id].code if t.machine_id in machines else "—",
+            machine_code=machine.code if machine else "—",
             stage=lifecycle.stage_name(t.current_stage),
-            priority=t.priority,
+            priority=lifecycle.urgency_of_machine(machine.criticality if machine else None),
             open_minutes=round((now - t.raised_at).total_seconds() / 60, 1),
             note=note,
         )
@@ -780,6 +809,9 @@ def get_ticket(ticket_id: UUID, principal: Operational, session: SessionDep) -> 
         raiser.name if raiser else "—",
         repeats.get((ticket.machine_id, ticket.category_id), 1),
         utcnow(),
+        (e.name if (e := session.get(User, ticket.last_edited_by)) else None)
+        if ticket.last_edited_by
+        else None,
     )
 
 
@@ -858,6 +890,7 @@ def _apply(
     match body.type:
         case "ACKNOWLEDGED":
             ticket.current_stage = 1
+            ticket.status = "acknowledged"
             ticket.acked_at = ts
             ticket.acked_by = principal.user_id
 
@@ -882,6 +915,7 @@ def _apply(
 
         case "REPAIR_STARTED":
             ticket.current_stage = 3
+            ticket.status = "in_progress"
             ticket.repair_at = ts
 
         case "RESOLVED":
@@ -891,9 +925,15 @@ def _apply(
                     detail="Describe what got it running again.",
                 )
             ticket.current_stage = 4
+            # The HALF-CLOSE. The machine is back in service from this instant:
+            # it leaves the Pending count and both closure-integrity flags key
+            # off this moment, not off the eventual full close, which can lag
+            # by days if the engineer got pulled onto another breakdown.
+            ticket.status = "resolved"
             ticket.resolved_at = ts
             ticket.resolved_by = principal.user_id
             ticket.immediate_correction = body.immediate_correction.strip()
+            classify.classify(ticket, session)
 
         case "DIAGNOSED":
             if not (body.why_1 or "").strip():
@@ -943,6 +983,7 @@ def _apply(
                     detail="Rate the resolution before closing.",
                 )
             ticket.current_stage = 6
+            ticket.status = "closed"
             ticket.closed_at = ts
             ticket.closed_by = principal.user_id
             ticket.rating = body.rating
@@ -950,8 +991,16 @@ def _apply(
         case "REOPENED":
             # The one backwards move in the system, and it is explicit.
             ticket.current_stage = 3
+            ticket.status = "correction_pending"
             ticket.reopen_count += 1
             ticket.resolved_at = None
             ticket.diagnosis_at = None
             ticket.closed_at = None
             ticket.rating = None
+            # The previous verdict described a repair that did not hold. Left
+            # in place it would keep reporting a 20-minute Low on a machine
+            # that is broken again; the fresh Correction Complete recomputes it
+            # over the whole of the second attempt.
+            ticket.solve_minutes = None
+            ticket.criticality_calculated = None
+

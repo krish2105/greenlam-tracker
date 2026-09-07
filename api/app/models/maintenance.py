@@ -155,6 +155,32 @@ class Ticket(PlantScoped, Timestamped, table=True):
     # "who moved this" survives even though Handoff asks for no reason.
     handed_off_by: int | None = Field(default=None, foreign_key="users.id")
 
+    # --- The repair, measured (V5 §5.8) ---------------------------------
+    #
+    # Written once, at the half-close. Both stay NULL on an open ticket, which
+    # is precisely why neither can order a live queue: at the moment somebody
+    # is choosing which of four stopped machines to walk to, all four answer
+    # NULL. `machines.criticality` (A/B/C) is what ranks those — it says how
+    # much the machine matters, and it is known before anything breaks.
+    #
+    # `priority` above is the field this replaces. It survives only until the
+    # Excel export and the register importer stop reading it.
+    solve_minutes: float | None = Field(default=None)
+    criticality_calculated: str | None = Field(default=None, max_length=10, index=True)
+
+    # --- Corrected after the fact (V5 §7) --------------------------------
+    #
+    # Set only by the Correct action, and only on a ticket that has already
+    # FULLY closed. Revising a ticket that is still open — including one
+    # sitting half-closed in "Resolved, RCA Pending" — is normal work in
+    # progress and leaves these NULL, because tagging it would put an "Edited"
+    # mark on most of the tickets in the plant and make the mark meaningless.
+    #
+    # `last_edited_at IS NOT NULL` is the Edited flag. There is no separate
+    # boolean: two columns that must agree eventually will not.
+    last_edited_at: datetime | None = Field(default=None, sa_type=utc_ts())
+    last_edited_by: int | None = Field(default=None, foreign_key="users.id")
+
     reopened_by: int | None = Field(default=None, foreign_key="users.id")
     # Required by the spec: a reopen asserts the previous fix did not hold, and
     # that claim needs a sentence attached to it.

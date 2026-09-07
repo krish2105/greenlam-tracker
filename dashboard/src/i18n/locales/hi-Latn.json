@@ -135,7 +135,17 @@
     "closed": "Band ho gaya. Machine {{duration}} band rahi.",
     "reopen": "Dobara kholein — theek nahi hua",
     "loadFailed": "Yeh ticket khul nahi saka.",
-    "actionFailed": "Yeh poora nahi hua. Dobara koshish karein."
+    "actionFailed": "Yeh poora nahi hua. Dobara koshish karein.",
+    "criticality": {
+      "Low": "Kam · marammat",
+      "Medium": "Madhyam · marammat",
+      "High": "Zyada · marammat"
+    },
+    "solveTime": "Marammat mein {{minutes}} minute asal kaam laga, intezaar ka samay chhodkar.",
+    "edited": "Badla gaya",
+    "editedBy": "Darj hone ke baad {{name}} ne sudhara.",
+    "correct": "Galti sudharein",
+    "correctHint": "Sirf likha hua badalta hai. Ticket band hi rahega aur machine theek hi mani jayegi."
   },
   "board": {
     "title": "Dashboard",
@@ -335,7 +345,8 @@
       "needQty": "Kitni sheet bani, woh daalein.",
       "needReason": "Reject ka kaaran chunein — bina kaaran ke rejection par kuch kiya nahi ja sakta.",
       "tooManyRejects": "Reject bani hui sheet se zyada nahi ho sakti.",
-      "failed": "Save nahi ho saka. Dobara koshish karein."
+      "failed": "Save nahi ho saka. Dobara koshish karein.",
+      "needLoad": "Press ki entry mein load no. zaroori hai — yahi in sheeton ko load se jodta hai."
     },
     "paretoPoint": "{{reason}}: {{sheets}} sheet, cumulative {{percent}}%",
     "share": "Hissa",
@@ -356,8 +367,13 @@
       "press": "Sheet",
       "resin": "Batch",
       "impregnation": "Paper roll",
-      "general": "Sheet"
-    }
+      "general": "Sheet",
+      "ac_room": "AC room"
+    },
+    "loadNo": "Load no.",
+    "loadNoOptional": "Load no. (agar pata ho)",
+    "loadNoPlaceholder": "Load plan se",
+    "loadNoHint": "SAP load plan par likha number. Isi se yeh sheet apne load tak wapas judti hain."
   },
   "plantMap": {
     "title": "Plant, samay ke hisaab se",
@@ -563,6 +579,48 @@
     "rejected": "Reject",
     "rejectedTooMany": "Batch ki quantity se zyada hai.",
     "notes": "Tippani",
-    "save": "Batch save karein"
+    "save": "Batch save karein",
+    "batchNoAbsent": "Batch ka number na ho to khaali chhod dein. Batch phir bhi darj ho jayega — bas use baad mein trace nahi kiya ja sakega."
+  },
+  "acRoom": {
+    "title": "AC room — {{machine}}",
+    "loadHint": "Yeh treated paper jis load ke liye taiyar ho raha hai.",
+    "processed": "Sheet process hui"
+  },
+  "correct": {
+    "title": "{{ticket}} sudharein",
+    "blurb": "Jo likha gaya tha use badlein. Isse ticket dobara nahi khulta — machine theek hi rahegi aur samay nahi hilega. Pehle kya likha tha, woh bhi saath rakha jata hai.",
+    "reason": "Badlav ki wajah (zaroori nahi)",
+    "reasonPlaceholder": "jaise: galat machine likh di thi",
+    "save": "Sudhar save karein",
+    "saving": "Save ho raha hai…",
+    "failed": "Save nahi ho saka. Dobara koshish karein.",
+    "historyTitle": "Pehle hue sudhar",
+    "historyLine": "{{name}} ne {{field}} badla",
+    "fields": {
+      "description": "Kya hua",
+      "immediate_correction": "Kisse chalu hui",
+      "why_1": "Kyun 1",
+      "why_2": "Kyun 2",
+      "why_3": "Kyun 3",
+      "preventive_action": "Dobara hone se kya rokega",
+      "produced_qty": "Bani",
+      "rejected_qty": "Reject",
+      "load_no": "Load no.",
+      "reject_reason_id": "Reject ka kaaran",
+      "shift_id": "Shift",
+      "log_date": "Tareekh"
+    },
+    "productionTitle": "Sudharein — {{machine}}",
+    "productionBlurb": "Jo daala gaya tha use badlein. Entry apni jagah rahegi; pehle kya likha tha woh bhi rakha jata hai.",
+    "productionReasonPlaceholder": "jaise: ek zero chhoot gaya"
+  },
+  "productionLog": {
+    "title": "Aaj darj hua",
+    "showWeek": "Pichhla hafta dikhayein",
+    "showToday": "Sirf aaj dikhayein",
+    "empty": "Abhi kuch darj nahi hua.",
+    "counts": "{{produced}} bani · {{rejected}} reject",
+    "correct": "Yeh entry sudharein"
   }
 }

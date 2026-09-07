@@ -44,12 +44,29 @@ class ProductionLog(PlantScoped, Timestamped, table=True):
         default=None, foreign_key="impregnation_logs.id", index=True
     )
 
+    # The SAP load plan this output belongs to, typed by the operator.
+    #
+    # A reference, not a foreign key — SAP is external to this project and
+    # there is nothing here to validate it against. It is the only bridge
+    # between the planning world and this one, which is why it is a plain
+    # indexed string rather than a lookup: the operator can always type what
+    # is on the sheet in front of them, even offline, even if the load is new.
+    #
+    # Mandatory at the press (enforced in the router, by machine form), and
+    # carried downstream through AC room, cutting and sanding so a load can be
+    # followed end to end. Never on an impregnated roll — see migration 0011.
+    load_no: str | None = Field(default=None, max_length=64, index=True)
+
     produced_qty: int = Field(default=0)
     rejected_qty: int = Field(default=0)
     reject_reason_id: int | None = Field(default=None, foreign_key="reject_reasons.id")
     target_qty: int | None = Field(default=None)
 
     logged_by: int = Field(foreign_key="users.id", index=True)
+
+    # Corrected after submission (V5 §7). NULL until somebody amends the entry.
+    last_edited_at: datetime | None = Field(default=None, sa_type=utc_ts())
+    last_edited_by: int | None = Field(default=None, foreign_key="users.id")
 
 
 class ImpregnationLog(PlantScoped, Timestamped, table=True):
@@ -119,9 +136,17 @@ class ImpregnationLog(PlantScoped, Timestamped, table=True):
 class ResinBatch(PlantScoped, table=True):
     """One batch out of a resin kettle.
 
-    `batch_no` is unique per plant because an impregnated roll references it by
+    `batch_no` is OPTIONAL. The resin register actually kept on the floor has
+    not been confirmed yet (V5 §6.2, §16), so the kettle operator records the
+    number they have — and sometimes there isn't one.
+
+    Where a number is present it is unique per plant, enforced by a partial
+    index (migration 0011), because an impregnated roll references a batch by
     name. Two batches sharing a number would make a trace ambiguous at exactly
     the moment somebody is following a blister backwards to find its cause.
+    A batch with no number simply cannot be traced to — which is honest, and
+    better than a required field filled with whatever stops the form
+    complaining.
     """
 
     __tablename__ = "resin_batches"
@@ -130,7 +155,7 @@ class ResinBatch(PlantScoped, table=True):
     machine_id: int = Field(foreign_key="machines.id", index=True)
     shift_id: int | None = Field(default=None, foreign_key="shifts.id")
 
-    batch_no: str = Field(max_length=64, index=True)
+    batch_no: str | None = Field(default=None, max_length=64, index=True)
     log_date: date = Field(index=True)
 
     quantity: Decimal | None = Field(default=None, max_digits=10, decimal_places=2)

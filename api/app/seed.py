@@ -75,15 +75,39 @@ PLANT = {"name": "Greenlam Laminates — Pilot Plant", "city": "", "state": "", 
 UNIT = "Unit 1"
 
 # Section -> machine codes, from docs/reference/greenlam-maintenance-tracker.jsx.
+# Counts come from specification V5 §4. Phase 1 / Phase 2 is a real division on
+# the floor — Press 1-3 against 4-5, Shearing per phase, AC Room per phase —
+# but nothing here encodes it: `unit_id` is the column that exists for exactly
+# that split, and the pilot is one unit. Worth revisiting when Phase 2 is
+# actually reported on separately.
+#
+# Paper and Boiler/Utility are NOT in V5's list. They are kept anyway: V5 does
+# not ask for their removal, it simply lists the production line, and a boiler
+# that stops is a breakdown somebody has to raise a ticket against.
 SECTIONS: dict[str, list[str]] = {
-    "Press": ["Press-1", "Press-2", "Press-3", "Press-4", "Press-5"],
+    "Press": [f"Press-{i}" for i in range(1, 6)],
     "Impregnation": [f"IMP-{i}" for i in range(1, 13)],
-    "Sanding": ["Sanding-1", "Sanding-2", "Sanding-3", "Sanding-4"],
-    "Cutting": ["DD Saw-1", "DD Saw-2", "Shearing-1", "Shearing-2"],
-    "Resin": ["Resin Kettle-1", "Resin Kettle-2", "Resin Kettle-3"],
+    "AC Room": ["AC Room-1", "AC Room-2"],
+    "Sanding": [f"Sanding-{i}" for i in range(1, 5)],
+    "Cutting": [f"DD Saw-{i}" for i in range(1, 6)] + ["Shearing-1", "Shearing-2"],
+    "Resin": [f"Resin Kettle-{i}" for i in range(1, 8)],
     "Paper": ["Paper Crane"],
     "Boiler/Utility": ["Boiler-1", "DG Set-1", "DG Set-2", "Cooling Tower"],
     "Other": [],
+}
+
+# Which production form each section's machines get.
+#
+# Migration 0008 backfills this with an ILIKE over section names, which is the
+# right tool for rows that already exist and the wrong one for rows being
+# created — a fresh seed runs AFTER the migration, so without this every
+# machine would land on 'general' and a press operator would be shown the
+# wrong form on a brand-new database.
+SECTION_FORMS: dict[str, str] = {
+    "Press": "press",
+    "Impregnation": "impregnation",
+    "Resin": "resin",
+    "AC Room": "ac_room",
 }
 
 # Section and category names in the two other locales.
@@ -101,6 +125,7 @@ SECTIONS: dict[str, list[str]] = {
 SECTION_NAMES: dict[str, tuple[str, str]] = {
     "Press": ("प्रेस", "Press"),
     "Impregnation": ("इम्प्रेग्नेशन", "Impregnation"),
+    "AC Room": ("एसी रूम", "AC Room"),
     "Sanding": ("सैंडिंग", "Sanding"),
     "Cutting": ("कटिंग", "Cutting"),
     "Resin": ("रेज़िन", "Resin"),
@@ -148,6 +173,7 @@ MACHINE_TYPE_NAMES: dict[str, tuple[str, str, str]] = {
     "DD Saw": ("Double-End Saw", "डबल-एंड सॉ", "Double-End Saw"),
     "Shearing": ("Shearing Machine", "शियरिंग मशीन", "Shearing Machine"),
     "Resin Kettle": ("Resin Kettle", "रेज़िन केतली", "Resin Kettle"),
+    "AC Room": ("AC Room", "एसी रूम", "AC Room"),
     "Paper Crane": ("Paper Handling Crane", "पेपर क्रेन", "Paper Crane"),
     "Boiler": ("Steam Boiler", "स्टीम बॉयलर", "Steam Boiler"),
     "DG Set": ("Diesel Generator", "डीज़ल जनरेटर", "Diesel Generator"),
@@ -353,6 +379,7 @@ def seed(session: Session, with_history: bool = True) -> None:
                     name=m_name,
                     name_hi=m_hi,
                     name_hi_latn=m_latn,
+                    production_form=SECTION_FORMS.get(section_name, "general"),
                     criticality="B",  # verify per machine in Phase 0
                     hourly_downtime_cost=None,  # from finance, never guessed
                     qr_token=issue_qr_token(),
