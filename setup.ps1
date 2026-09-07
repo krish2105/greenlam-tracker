@@ -23,7 +23,7 @@ function Head($m) { Write-Host "`n$m" -ForegroundColor White }
 # Printed so a bug report says which copy is actually running. Every time
 # this has been debugged remotely, the first question has been whether the
 # fix was even in the folder being run.
-Write-Host 'Greenlam Tracker  build 2026-08-27-a' -ForegroundColor DarkGray
+Write-Host 'Greenlam Tracker  build 2026-09-07-a' -ForegroundColor DarkGray
 
 Head 'Checking what you have installed'
 

@@ -71,7 +71,7 @@ foreach ($port in 8000, $appPort) {
   } catch { }
 }
 
-Write-Host 'Greenlam Tracker  build 2026-08-27-a' -ForegroundColor DarkGray
+Write-Host 'Greenlam Tracker  build 2026-09-07-a' -ForegroundColor DarkGray
 Write-Host "`nStarting the API" -ForegroundColor White
 # --host 127.0.0.1 explicitly, so the address it binds is the address we probe.
 # It is uvicorn's default, but leaving it implicit is what let the probe and
