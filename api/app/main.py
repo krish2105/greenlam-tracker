@@ -23,6 +23,7 @@ from .routers import (
     lifecycle_actions,
     masters,
     people,
+    photos,
     production,
     push,
     qr,
@@ -99,6 +100,7 @@ app.include_router(masters.router)
 app.include_router(tickets.router)
 app.include_router(people.router)
 app.include_router(production.router)
+app.include_router(photos.router)
 app.include_router(push.router)
 app.include_router(qr.router)
 app.include_router(imports.router)

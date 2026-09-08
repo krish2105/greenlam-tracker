@@ -15,6 +15,12 @@ from sqlmodel import Session, select
 
 from app.models import Ticket, TicketPendingWindow
 
+# A one-pixel PNG, for the part photo V5 §5.4 requires before a hold can end.
+_PNG = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4"
+    "890000000a49444154789c6360000002000100" "05fe02fe" "a7d1b0e40000000049454e44ae426082"
+)
+
 
 def _other_user(session: Session, plant_fixture) -> int:
     """The id of a second person in the plant, to hand a ticket to."""
@@ -107,6 +113,17 @@ class TestHoldAndResume:
     ):
         h = self._claimed(client, auth_headers, seeded_ticket)
         client.post(f"/tickets/{seeded_ticket}/hold", json={"kind": "material"}, headers=h)
+
+        # V5 §5.4: a parts hold cannot end without a photo of the arrived part.
+        # See tests/test_pending_clock.py for why that rule is enforced.
+        import io
+
+        assert client.post(
+            f"/photos/ticket/{seeded_ticket}?kind=part_arrived",
+            files={"file": ("part.png", io.BytesIO(_PNG), "image/png")},
+            headers=h,
+        ).status_code == 201
+
         r = client.post(f"/tickets/{seeded_ticket}/resume", json={}, headers=h)
         assert r.status_code == 200, r.text
         assert r.json()["status"] == "in_progress"

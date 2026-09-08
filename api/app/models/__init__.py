@@ -12,6 +12,7 @@ from .maintenance import (
     RAISED_VIA,
     STAGES,
     Attachment,
+    AttachmentBlob,
     PmCompletion,
     PmSchedule,
     Ticket,
@@ -80,6 +81,7 @@ __all__ = [
     "TicketMaterial",
     "TicketPendingWindow",
     "Attachment",
+    "AttachmentBlob",
     "PmSchedule",
     "PmCompletion",
     # production

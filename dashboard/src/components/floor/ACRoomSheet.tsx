@@ -14,17 +14,18 @@
  * being assembled for a particular load, which is most of the time but not a
  * rule — so it is asked for first and prominently, and left to the operator.
  *
- * The pack-order photo from V5 §6.2 is NOT here yet, and neither is any other
- * photo in this system: the `attachments` table exists and no endpoint writes
- * to it. One storage layer serves the material receipt (§5.4), the photo that
- * ends a parts hold (§5.4) and this pack order, so it gets built once rather
- * than three times — and it is still outstanding.
+ * The pack-order photo (V5 §6.2) is taken AFTER the entry is saved, not before.
+ * The entry needs an id for the photo to hang off, and asking for a photo
+ * first would mean holding the counts in limbo while somebody hunts for the
+ * paperwork. "when normally available" is V5's own wording, so it is offered
+ * rather than required.
  */
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import * as api from '../../lib/api';
+import { PhotoButton } from './PhotoButton';
 import { Sheet } from '../Sheet';
 
 export function ACRoomSheet({
@@ -49,6 +50,7 @@ export function ACRoomSheet({
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   useEffect(() => {
     void Promise.all([
@@ -79,7 +81,7 @@ export function ACRoomSheet({
     setBusy(true);
     setError('');
     try {
-      await api.logProduction({
+      const row = await api.logProduction({
         machine_id: machine.id,
         shift_id: shiftId,
         load_no: loadNo.trim() || null,
@@ -88,7 +90,11 @@ export function ACRoomSheet({
         rejected_qty: rejectedCount,
         reject_reason_id: rejectedCount > 0 ? reasonId : null,
       });
-      onLogged();
+      // The counts are saved. The pack-order photo is offered next rather than
+      // demanded first — the entry needs an id for a photo to hang off, and
+      // holding the numbers hostage while somebody finds the paperwork is how
+      // a shift's output goes unrecorded.
+      setSavedId(row.id);
     } catch {
       setError(t('production.errors.failed'));
     } finally {
@@ -222,15 +228,37 @@ export function ACRoomSheet({
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={() => void submit()}
-          disabled={busy}
-          className="arch w-full py-4 font-semibold disabled:opacity-60"
-          style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
-        >
-          {busy ? t('production.submitting') : t('production.submit')}
-        </button>
+        {savedId ? (
+          <div className="space-y-3">
+            <p role="status" style={{ color: 'var(--primary)' }}>
+              {t('acRoom.saved')}
+            </p>
+            <PhotoButton
+              label={t('acRoom.packOrderPhoto')}
+              onCapture={async (photo) => {
+                await api.uploadProductionPhoto(savedId, photo);
+              }}
+            />
+            <button
+              type="button"
+              onClick={onLogged}
+              className="arch w-full py-4 font-semibold"
+              style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
+            >
+              {t('acRoom.done')}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={busy}
+            className="arch w-full py-4 font-semibold disabled:opacity-60"
+            style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
+          >
+            {busy ? t('production.submitting') : t('production.submit')}
+          </button>
+        )}
       </div>
     </Sheet>
   );

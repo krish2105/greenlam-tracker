@@ -13,12 +13,28 @@ the failure this whole system exists to prevent. These tests pin the
 subtraction.
 """
 
+import io
 from datetime import timedelta
 
 from fastapi.testclient import TestClient
 from sqlmodel import select
 
 from app.models import Ticket, TicketPendingWindow, utcnow
+
+# A one-pixel PNG, for the photo V5 §5.4 requires before a parts hold can end.
+PNG = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4"
+    "890000000a49444154789c6360000002000100" "05fe02fe" "a7d1b0e40000000049454e44ae426082"
+)
+
+
+def _photograph_the_part(client: TestClient, tid: str, headers) -> None:
+    r = client.post(
+        f"/photos/ticket/{tid}?kind=part_arrived",
+        files={"file": ("part.png", io.BytesIO(PNG), "image/png")},
+        headers=headers,
+    )
+    assert r.status_code == 201, r.text
 
 
 def _work_to_repair(client: TestClient, tid: str, headers) -> None:
@@ -42,6 +58,7 @@ class TestTheClockStopsAndStarts:
         assert client.post(
             f"/tickets/{tid}/hold", json={"kind": "material"}, headers=h
         ).status_code == 200
+        _photograph_the_part(client, tid, h)
         assert client.post(f"/tickets/{tid}/resume", json={}, headers=h).status_code == 200
 
         session.expire_all()
@@ -72,6 +89,58 @@ class TestTheClockStopsAndStarts:
         client.post(f"/tickets/{tid}/hold", json={"kind": "material"}, headers=h)
         again = client.post(f"/tickets/{tid}/hold", json={"kind": "material"}, headers=h)
         assert again.status_code == 409
+
+
+class TestThePartHasToBePhotographed:
+    """V5 §5.4: "Simply waiting isn't enough to move the ticket forward."
+
+    Ending a parts hold restarts the repair clock, and the difference lands in
+    Solve Time and then in the criticality band. It is the one claim in the
+    lifecycle with a number attached that nobody else witnesses.
+    """
+
+    def test_resuming_without_a_photo_is_refused(
+        self, client: TestClient, plant_fixture, auth_headers, seeded_ticket
+    ):
+        h = auth_headers("app")
+        tid = str(seeded_ticket)
+        _work_to_repair(client, tid, h)
+        client.post(f"/tickets/{tid}/hold", json={"kind": "material"}, headers=h)
+
+        r = client.post(f"/tickets/{tid}/resume", json={}, headers=h)
+        assert r.status_code == 422
+        assert "photo" in r.json()["detail"].lower()
+
+    def test_a_correction_pending_hold_needs_no_photo(
+        self, client: TestClient, plant_fixture, auth_headers, seeded_ticket
+    ):
+        """There is nothing to photograph. Requiring one would teach people to
+        photograph the floor."""
+        h = auth_headers("app")
+        tid = str(seeded_ticket)
+        _work_to_repair(client, tid, h)
+        client.post(
+            f"/tickets/{tid}/hold",
+            json={"kind": "correction_pending", "reason": "Still leaking."},
+            headers=h,
+        )
+        assert client.post(f"/tickets/{tid}/resume", json={}, headers=h).status_code == 200
+
+    def test_a_photo_from_an_earlier_hold_does_not_count(
+        self, client: TestClient, plant_fixture, auth_headers, seeded_ticket
+    ):
+        """Otherwise one photo, once, unlocks every future wait on the ticket."""
+        h = auth_headers("app")
+        tid = str(seeded_ticket)
+        _work_to_repair(client, tid, h)
+
+        client.post(f"/tickets/{tid}/hold", json={"kind": "material"}, headers=h)
+        _photograph_the_part(client, tid, h)
+        assert client.post(f"/tickets/{tid}/resume", json={}, headers=h).status_code == 200
+
+        client.post(f"/tickets/{tid}/hold", json={"kind": "material"}, headers=h)
+        again = client.post(f"/tickets/{tid}/resume", json={}, headers=h)
+        assert again.status_code == 422
 
 
 class TestWaitingIsNotRepairTime:
@@ -153,6 +222,7 @@ class TestTheTicketShowsIt:
         # An open window has no length yet — the wait is still happening.
         assert on_hold["pending_minutes"] == 0
 
+        _photograph_the_part(client, tid, h)
         client.post(f"/tickets/{tid}/resume", json={}, headers=h)
         after = client.get(f"/tickets/{tid}", headers=h).json()
         assert after["hold_kind"] is None

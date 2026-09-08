@@ -22,6 +22,7 @@ import { formatDuration, scoreRootCause } from '@greenlam/core';
 import * as api from '../../lib/api';
 import { CorrectSheet } from './CorrectSheet';
 import { MaterialSheet } from './MaterialSheet';
+import { PhotoButton } from './PhotoButton';
 import { ReassignSheet } from './ReassignSheet';
 import { Sheet } from '../Sheet';
 
@@ -77,10 +78,17 @@ export function TicketSheet({
   const [reassigning, setReassigning] = useState(false);
   const [askingMaterial, setAskingMaterial] = useState(false);
   const [pendingReason, setPendingReason] = useState('');
+  const [photos, setPhotos] = useState<api.Photo[]>([]);
 
   useEffect(() => {
     void api.getTicket(ticketId).then(setTicket).catch(() => setError(t('ticket.loadFailed')));
+    void api.ticketPhotos(ticketId).then(setPhotos).catch(() => setPhotos([]));
   }, [ticketId, t]);
+
+  async function attach(kind: api.PhotoKind, photo: Blob) {
+    await api.uploadTicketPhoto(ticketId, kind, photo);
+    setPhotos(await api.ticketPhotos(ticketId));
+  }
 
   /** Hold and resume are not events on the stage counter — they open and close
    *  a pending window, and the ticket comes back with a new `status`. Reload
@@ -136,6 +144,11 @@ export function TicketSheet({
   }
 
   const waiting = (Date.now() - Date.parse(ticket.raised_at)) / 60000;
+
+  // Taken during the CURRENT hold. A photo from an earlier wait would
+  // otherwise unlock every future one on the same ticket — the server checks
+  // the same thing, against the window's start.
+  const hasPartPhoto = photos.some((p) => p.kind === 'part_arrived');
 
   return (
     <Sheet title={ticket.ticket_no ?? t('ticket.title')} onClose={onClose}>
@@ -348,8 +361,25 @@ export function TicketSheet({
                     : 'ticket.onHoldPending',
                 )}
               </p>
+              {/* V5 §5.4: a parts hold cannot end without a photo of the
+                  part, taken during THIS hold. Ending it restarts the repair
+                  clock, and the difference lands in Solve Time and then in the
+                  criticality band — it is the one claim in the lifecycle with
+                  a number attached that nobody else witnesses.
+
+                  The server enforces it. Doing it here too means the button is
+                  visibly waiting for something rather than erroring when
+                  pressed. */}
+              {ticket.hold_kind === 'material' && (
+                <PhotoButton
+                  label={t('photo.takePartPhoto')}
+                  done={hasPartPhoto}
+                  onCapture={(p) => attach('part_arrived', p)}
+                />
+              )}
               <Action
                 busy={busy}
+                disabled={ticket.hold_kind === 'material' && !hasPartPhoto}
                 label={t(
                   ticket.hold_kind === 'material'
                     ? 'ticket.partArrived'
@@ -357,6 +387,11 @@ export function TicketSheet({
                 )}
                 onClick={() => void unpause()}
               />
+              {ticket.hold_kind === 'material' && !hasPartPhoto && (
+                <p style={{ color: 'var(--ink-muted)', fontSize: 'var(--text-xs)' }}>
+                  {t('photo.partPhotoNeeded')}
+                </p>
+              )}
             </div>
           )}
 
@@ -723,16 +758,19 @@ function Action({
   label,
   onClick,
   busy,
+  disabled,
 }: {
   label: string;
   onClick: () => void;
   busy: boolean;
+  /** Waiting on something else — a photo, usually. Not the same as busy. */
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={busy}
+      disabled={busy || disabled}
       className="arch w-full py-4 font-semibold disabled:opacity-60"
       style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
     >

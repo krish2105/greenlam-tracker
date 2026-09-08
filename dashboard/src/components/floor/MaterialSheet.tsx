@@ -28,6 +28,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import * as api from '../../lib/api';
+import { PhotoButton } from './PhotoButton';
 import { Sheet } from '../Sheet';
 
 type Step = 'ask' | 'details';
@@ -48,6 +49,7 @@ export function MaterialSheet({
   const [name, setName] = useState('');
   const [bin, setBin] = useState('');
   const [busy, setBusy] = useState(false);
+  const [photoTaken, setPhotoTaken] = useState(false);
   const [error, setError] = useState('');
 
   const field = {
@@ -168,6 +170,21 @@ export function MaterialSheet({
                 />
               </div>
             )}
+
+            {/* V5 §5.4 asks for a photo of the receipt and the material. Not
+                blocking here: a technician at a stores counter with a stopped
+                press behind them may not have the receipt in hand yet, and a
+                gate at this point would be answered by photographing anything.
+                The gate that matters is on Resume — the claim with a number
+                attached. */}
+            <PhotoButton
+              label={t('photo.takeReceiptPhoto')}
+              done={photoTaken}
+              onCapture={async (photo) => {
+                await api.uploadTicketPhoto(ticket.id, 'material', photo);
+                setPhotoTaken(true);
+              }}
+            />
 
             {error && (
               <p

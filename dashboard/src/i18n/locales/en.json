@@ -617,7 +617,10 @@
   "acRoom": {
     "title": "AC room — {{machine}}",
     "loadHint": "The load this treated paper is being assembled for.",
-    "processed": "Sheets processed"
+    "processed": "Sheets processed",
+    "saved": "Saved.",
+    "packOrderPhoto": "Photo of the pack order",
+    "done": "Done"
   },
   "correct": {
     "title": "Correct {{ticket}}",
@@ -726,5 +729,13 @@
     "saving": "Saving…",
     "failed": "Could not save that. Try again.",
     "thenHold": "Once you are actually waiting, tap “Waiting for a part” on the ticket to stop the clock."
+  },
+  "photo": {
+    "takePartPhoto": "Photo of the part",
+    "takeReceiptPhoto": "Photo of the receipt",
+    "another": "Take another",
+    "saving": "Saving…",
+    "failed": "Could not save the photo. Try again.",
+    "partPhotoNeeded": "A photo of the part is needed before the repair can start again."
   }
 }

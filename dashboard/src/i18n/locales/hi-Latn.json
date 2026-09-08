@@ -617,7 +617,10 @@
   "acRoom": {
     "title": "AC room — {{machine}}",
     "loadHint": "Yeh treated paper jis load ke liye taiyar ho raha hai.",
-    "processed": "Sheet process hui"
+    "processed": "Sheet process hui",
+    "saved": "Save ho gaya.",
+    "packOrderPhoto": "Pack order ki photo",
+    "done": "Ho gaya"
   },
   "correct": {
     "title": "{{ticket}} sudharein",
@@ -726,5 +729,13 @@
     "saving": "Save ho raha hai…",
     "failed": "Save nahi ho saka. Dobara koshish karein.",
     "thenHold": "Jab sach mein intezaar shuru ho, ticket par “Part ka intezaar” dabakar ghadi rok dein."
+  },
+  "photo": {
+    "takePartPhoto": "Part ki photo",
+    "takeReceiptPhoto": "Raseed ki photo",
+    "another": "Ek aur lein",
+    "saving": "Save ho rahi hai…",
+    "failed": "Photo save nahi hui. Dobara koshish karein.",
+    "partPhotoNeeded": "Marammat dobara shuru karne se pehle part ki photo zaroori hai."
   }
 }

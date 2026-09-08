@@ -1366,3 +1366,59 @@ export function resumeTicket(ticketId: string): Promise<unknown> {
     body: JSON.stringify({ submission_id: crypto.randomUUID() }),
   });
 }
+
+
+// ---------------------------------------------------------------------------
+// Photos (V5 §5.4, §6.2)
+// ---------------------------------------------------------------------------
+
+export type PhotoKind = 'material' | 'part_arrived' | 'pack_order' | 'other';
+
+export interface Photo {
+  id: number;
+  kind: PhotoKind | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  uploaded_at: string;
+  uploaded_by_name: string | null;
+}
+
+/**
+ * Upload a photo against a ticket.
+ *
+ * `part_arrived` is the one the server insists on: a parts hold cannot end
+ * without one taken during that hold (V5 §5.4), because ending it restarts the
+ * repair clock and nobody else witnesses the claim.
+ */
+export function uploadTicketPhoto(
+  ticketId: string,
+  kind: PhotoKind,
+  photo: Blob,
+): Promise<Photo> {
+  const form = new FormData();
+  form.append('file', photo, 'photo.jpg');
+  // No Content-Type header — the browser has to set the multipart boundary,
+  // and naming it here produces a body the server cannot parse.
+  return request<Photo>(`/photos/ticket/${ticketId}?kind=${kind}`, {
+    method: 'POST',
+    body: form,
+  });
+}
+
+export function uploadProductionPhoto(logId: string, photo: Blob): Promise<Photo> {
+  const form = new FormData();
+  form.append('file', photo, 'photo.jpg');
+  return request<Photo>(`/photos/production/${logId}?kind=pack_order`, {
+    method: 'POST',
+    body: form,
+  });
+}
+
+export function ticketPhotos(ticketId: string): Promise<Photo[]> {
+  return request<Photo[]>(`/photos/ticket/${ticketId}`);
+}
+
+/** Where the bytes are. Immutable, so the browser caches it hard. */
+export function photoUrl(photoId: number): string {
+  return `${BASE}/photos/${photoId}`;
+}

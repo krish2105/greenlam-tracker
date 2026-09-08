@@ -26,7 +26,15 @@ from sqlmodel import select
 
 from .. import notify
 from ..deps import PrincipalDep, SessionDep
-from ..models import Machine, Ticket, TicketEvent, TicketPendingWindow, User, UserAccessArea
+from ..models import (
+    Attachment,
+    Machine,
+    Ticket,
+    TicketEvent,
+    TicketPendingWindow,
+    User,
+    UserAccessArea,
+)
 from ..models.base import utcnow
 from ..models.maintenance import PENDING_KINDS
 from ..tenancy import assert_visible
@@ -240,6 +248,31 @@ def resume(ticket_id: UUID, body: ClaimIn, principal: PrincipalDep, session: Ses
     ).first()
     if window is None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="This ticket is not on hold.")
+
+    # V5 §5.4: "when the part arrives, the engineer must click Resume and upload
+    # a photo of the arrived part before the ticket can continue. Simply waiting
+    # isn't enough to move the ticket forward."
+    #
+    # Enforced only for a MATERIAL hold. A correction-pending window ends when
+    # somebody goes back to the machine, and there is nothing to photograph —
+    # requiring one there would teach people to photograph the floor.
+    #
+    # This is the one claim in the lifecycle with a number attached that nobody
+    # else witnesses: ending the window restarts the repair clock, and the
+    # difference lands in Solve Time and then in the criticality band.
+    if window.kind == "material":
+        has_photo = session.exec(
+            select(Attachment).where(
+                Attachment.ticket_id == ticket_id,
+                Attachment.kind == "part_arrived",
+                Attachment.uploaded_at >= window.started_at,
+            )
+        ).first()
+        if has_photo is None:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Take a photo of the part that arrived before starting again.",
+            )
 
     ts, source = _stamp(body)
     # Guard the check constraint with a clear message rather than a 500 from

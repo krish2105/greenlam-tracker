@@ -292,12 +292,47 @@ class Attachment(PlantScoped, table=True):
     id: int | None = Field(default=None, primary_key=True)
     ticket_id: UUID | None = Field(default=None, foreign_key="tickets.id", index=True)
     event_id: UUID | None = Field(default=None, foreign_key="ticket_events.event_id")
+    # Which production entry this belongs to, when it is not a ticket photo.
+    # The AC room's pack order is the case V5 §6.2 names.
+    production_log_id: UUID | None = Field(
+        default=None, foreign_key="production_logs.id", index=True
+    )
+
     # Key only, never a URL — the storage backend is swappable (R2 or local
     # filesystem) so an on-prem mandate changes one class, not the schema.
     storage_key: str = Field(max_length=400)
+
+    # What this photo is evidence OF (V5 §5.4, §6.2). Without it a ticket with
+    # three photos is three photos, and the question actually being asked is
+    # always "show me the one of the part that arrived".
+    kind: str | None = Field(default=None, max_length=24)
     mime_type: str | None = Field(default=None, max_length=100)
     size_bytes: int | None = Field(default=None)
+    uploaded_by: int | None = Field(default=None, foreign_key="users.id")
     uploaded_at: datetime = Field(default_factory=utcnow, sa_type=utc_ts())
+
+
+class AttachmentBlob(SQLModel, table=True):
+    """The bytes.
+
+    Its own table so a photo is only read when somebody opens it — a ticket
+    list that joined the image data would ship megabytes to render a row count.
+
+    In Postgres rather than object storage because neither alternative works
+    today: R2 needs credentials Greenlam has not issued, and Render's free tier
+    has no persistent disk, so a file written to the container is gone on the
+    next deploy. A photo proving a part arrived, quietly vanishing a week
+    later, is worse than never having taken one.
+
+    Moving to R2 later means writing the bytes there, putting the object key in
+    `Attachment.storage_key`, and dropping this table. Nothing that reads
+    attachments changes.
+    """
+
+    __tablename__ = "attachment_blobs"
+
+    attachment_id: int = Field(primary_key=True, foreign_key="attachments.id")
+    data: bytes
 
 
 class PmSchedule(PlantScoped, Timestamped, table=True):
