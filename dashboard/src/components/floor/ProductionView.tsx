@@ -41,6 +41,8 @@ export function ProductionView() {
   // ever come back from this endpoint.
   const [drafts, setDrafts] = useState<api.ProductionDraft[]>([]);
   const [resuming, setResuming] = useState<api.ProductionDraft | null>(null);
+  // Bumped whenever an entry is submitted, so the log below reloads.
+  const [logKey, setLogKey] = useState(0);
 
   const loadDrafts = useCallback(() => {
     void api
@@ -104,6 +106,7 @@ export function ProductionView() {
   const done = (message: string) => {
     close();
     loadDrafts();
+    setLogKey((n) => n + 1);
     setSaved(message);
     window.setTimeout(() => setSaved(null), 4000);
   };
@@ -248,7 +251,7 @@ export function ProductionView() {
       {/* What has already gone in today. Below the machine picker, because the
           job people came here to do is log an entry — but close enough to
           answer "has the last shift already done this?" before they start. */}
-      <ProductionLogView />
+      <ProductionLogView reloadKey={logKey} />
 
       {/* Dispatch. An impregnator gets the roll form, a kettle the batch form,
           the AC room its own handling form, everything else the sheet-count

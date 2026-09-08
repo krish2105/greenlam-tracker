@@ -23,20 +23,24 @@ import { useTranslation } from 'react-i18next';
 import * as api from '../../lib/api';
 import { CorrectProductionSheet } from './CorrectProductionSheet';
 
-export function ProductionLogView() {
+export function ProductionLogView({ reloadKey = 0 }: { reloadKey?: number }) {
   const { t } = useTranslation();
   const [rows, setRows] = useState<api.ProductionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(1);
   const [correcting, setCorrecting] = useState<api.ProductionRow | null>(null);
 
+  // `reloadKey` changes when an entry is submitted above this list. Without it
+  // the operator presses Done, reads "Production saved", looks down at the log
+  // and does not find their entry — which is exactly what a failed save looks
+  // like, on the one screen where being unsure means logging it twice.
   const load = useCallback(() => {
     void api
       .listProduction(days)
       .then(setRows)
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
-  }, [days]);
+  }, [days, reloadKey]);
 
   useEffect(load, [load]);
 
