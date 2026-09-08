@@ -16,7 +16,7 @@
  * machine stands rather than what it does.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import * as api from '../../lib/api';
@@ -37,6 +37,17 @@ export function ProductionView() {
   const [query, setQuery] = useState('');
   const [chosen, setChosen] = useState<api.Machine | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  // Entries this person started and has not finished (V5 §6.3). Nobody else's
+  // ever come back from this endpoint.
+  const [drafts, setDrafts] = useState<api.ProductionDraft[]>([]);
+  const [resuming, setResuming] = useState<api.ProductionDraft | null>(null);
+
+  const loadDrafts = useCallback(() => {
+    void api
+      .listDrafts()
+      .then(setDrafts)
+      .catch(() => setDrafts([]));
+  }, []);
 
   useEffect(() => {
     void Promise.all([api.listMachines(), api.listSections()])
@@ -46,7 +57,8 @@ export function ProductionView() {
       })
       .catch(() => setMachines([]))
       .finally(() => setLoading(false));
-  }, []);
+    loadDrafts();
+  }, [loadDrafts]);
 
   const sectionOf = useMemo(
     () => new Map(sections.map((s) => [s.id, s])),
@@ -81,12 +93,25 @@ export function ProductionView() {
     }));
   }, [shown, sectionOf, sectionName]);
 
-  const close = () => setChosen(null);
-  const done = (message: string) => {
+  const close = () => {
     setChosen(null);
+    setResuming(null);
+  };
+  const done = (message: string) => {
+    close();
+    loadDrafts();
     setSaved(message);
     window.setTimeout(() => setSaved(null), 4000);
   };
+
+  async function discard(id: string) {
+    // No confirmation. A draft is a note to self, the list is right there, and
+    // a dialog between a gloved hand and a two-tap job is its own kind of cost.
+    // Nothing that has reached a dashboard can be deleted this way — the server
+    // refuses a submitted row outright.
+    await api.discardDraft(id).catch(() => undefined);
+    loadDrafts();
+  }
 
   return (
     <div className="pt-2 pb-24">
@@ -105,6 +130,56 @@ export function ProductionView() {
         >
           {saved}
         </p>
+      )}
+
+      {drafts.length > 0 && (
+        <section aria-labelledby="drafts" className="mt-4">
+          <h2
+            id="drafts"
+            className="register-rule pb-1 font-semibold"
+            style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)' }}
+          >
+            {t('production.draftsTitle')}
+          </h2>
+          <p className="mt-1" style={{ color: 'var(--ink-muted)', fontSize: 'var(--text-xs)' }}>
+            {t('production.draftsHint')}
+          </p>
+          <ul className="mt-2 space-y-2">
+            {drafts.map((d) => (
+              <li key={d.id} className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setResuming(d)}
+                  className="arch flex-1 border px-3 py-3 text-left"
+                  style={{
+                    borderColor: 'var(--amber)',
+                    background: 'var(--surface)',
+                    color: 'var(--ink)',
+                  }}
+                >
+                  <span className="font-semibold">{d.machine_code}</span>
+                  <span
+                    className="ml-2"
+                    style={{ color: 'var(--ink-muted)', fontSize: 'var(--text-sm)' }}
+                  >
+                    {d.load_no ?? t('production.draftNoLoad')} ·{' '}
+                    {d.produced_qty
+                      ? t('production.draftSheets', { count: d.produced_qty })
+                      : t('production.draftEmpty')}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void discard(d.id)}
+                  className="arch border px-3 py-3 font-medium"
+                  style={{ borderColor: 'var(--line-strong)', color: 'var(--ink-muted)' }}
+                >
+                  {t('production.draftDiscard')}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <input
@@ -200,6 +275,17 @@ export function ProductionView() {
           machineId={chosen.id}
           onClose={close}
           onLogged={() => done(t('production.savedProduction'))}
+          onDrafted={() => done(t('production.savedDraft'))}
+        />
+      )}
+
+      {resuming && (
+        <LogProductionSheet
+          draft={resuming}
+          machineId={resuming.machine_id}
+          onClose={close}
+          onLogged={() => done(t('production.savedProduction'))}
+          onDrafted={() => done(t('production.savedDraft'))}
         />
       )}
     </div>

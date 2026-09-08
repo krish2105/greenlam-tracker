@@ -419,7 +419,18 @@
     "rejectedCount_other": "{{count}} sheets scrapped",
     "vsTarget": "Against target",
     "targetOf": "Target {{target}}",
-    "noTarget": "No target recorded"
+    "noTarget": "No target recorded",
+    "saveDraft": "Save for later",
+    "draftHint": "Saved for you only. It reaches no report until you press Done.",
+    "resumeTitle": "Finish this entry",
+    "draftsTitle": "Not finished yet",
+    "draftsHint": "Only you can see these. Tap one to finish it.",
+    "draftNoLoad": "No Load No.",
+    "draftEmpty": "nothing entered yet",
+    "draftSheets_one": "1 sheet",
+    "draftSheets_other": "{{count}} sheets",
+    "draftDiscard": "Discard",
+    "savedDraft": "Saved. Finish it whenever you are ready."
   },
   "plantMap": {
     "title": "The plant, by where the time goes",

@@ -360,7 +360,10 @@ def sheet_production(wb: Workbook, conn: psycopg.Connection, plant_id: int) -> N
         LEFT JOIN reject_reasons r ON r.id = p.reject_reason_id
         LEFT JOIN users u ON u.id = p.logged_by
         LEFT JOIN users e ON e.id = p.last_edited_by
-        WHERE p.plant_id = %s
+        -- Drafts stay out of the workbook (V5 §6.3). An unfinished entry is
+        -- private to whoever started it, and the workbook is the one artefact
+        -- that gets forwarded by email without anybody checking it first.
+        WHERE p.plant_id = %s AND p.submitted_at IS NOT NULL
         ORDER BY p.log_date DESC
         LIMIT 20000
         """,

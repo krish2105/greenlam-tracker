@@ -692,8 +692,22 @@ export interface ProductionRow {
   target_qty: number | null;
   reject_percent: number;
   logged_by_name: string;
+  /** NULL while it is a draft (V5 §6.3). */
+  submitted_at: string | null;
   last_edited_at: string | null;
   last_edited_by_name: string | null;
+}
+
+/** A draft, plus the ids the form needs to come back the way it was left. */
+export interface ProductionDraft extends ProductionRow {
+  machine_id: number | null;
+  shift_id: number | null;
+  design_id: number | null;
+  size_id: number | null;
+  texture_id: number | null;
+  thickness_id: number | null;
+  reject_reason_id: number | null;
+  roll_no: string | null;
 }
 
 export interface RejectReason {
@@ -759,6 +773,16 @@ export interface LogProductionInput {
   rejected_qty: number;
   reject_reason_id?: number | null;
   target_qty?: number | null;
+  /**
+   * Save without finishing (V5 §6.3).
+   *
+   * A draft is private to whoever started it, reaches no dashboard and no
+   * workbook, and is never tagged "Edited" however often it changes. The
+   * validation that protects the numbers runs at `submitProduction`, not here
+   * — a rule applied to a half-filled form would refuse the exact state this
+   * exists to hold.
+   */
+  draft?: boolean;
 }
 
 export function logProduction(input: LogProductionInput): Promise<ProductionRow> {
@@ -766,6 +790,32 @@ export function logProduction(input: LogProductionInput): Promise<ProductionRow>
     method: 'POST',
     body: JSON.stringify(input),
   });
+}
+
+/** My own unfinished entries. Nobody else's are ever returned. */
+export function listDrafts(): Promise<ProductionDraft[]> {
+  return request<ProductionDraft[]>('/production/drafts');
+}
+
+/** Change a draft. Freely, as often as you like — nothing is audited yet. */
+export function updateDraft(
+  id: string,
+  changes: Partial<LogProductionInput>,
+): Promise<ProductionDraft> {
+  return request<ProductionDraft>(`/production/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(changes),
+  });
+}
+
+/** The Done press. Everything deferred at save is checked here. */
+export function submitProduction(id: string): Promise<ProductionRow> {
+  return request<ProductionRow>(`/production/${id}/submit`, { method: 'POST' });
+}
+
+/** Throw a draft away. A submitted entry can never be deleted. */
+export function discardDraft(id: string): Promise<void> {
+  return request<void>(`/production/${id}`, { method: 'DELETE' });
 }
 
 // ---------------------------------------------------------------------------

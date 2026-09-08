@@ -286,10 +286,12 @@ def correct_production(
     outside = _authorise(
         principal=principal,
         owner_id=row.logged_by,
-        # Submission is creation, for now. V5 §6.3 adds a Draft state whose
-        # Done press becomes the anchor instead; until drafts exist, an entry
-        # is final the moment it is saved.
-        anchor=row.created_at,
+        # The Done press, not the first save (V5 §6.3). An entry started on
+        # Monday and finished on Wednesday would otherwise arrive with its
+        # ten-hour window already spent. A draft has no anchor at all, and
+        # `_authorise` answers that with "edit it directly instead", which is
+        # exactly right — PUT /production/{id} is that edit.
+        anchor=row.submitted_at,
         hours=lifecycle.PRODUCTION_SELF_CORRECT_HOURS,
         noun="entry",
     )

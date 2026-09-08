@@ -64,6 +64,15 @@ class ProductionLog(PlantScoped, Timestamped, table=True):
 
     logged_by: int = Field(foreign_key="users.id", index=True)
 
+    # When the operator pressed Done (V5 §6.3). NULL means this is still a
+    # draft: private to whoever started it, absent from the daily log, the
+    # dashboard and the Excel, and freely editable without being tagged Edited.
+    #
+    # It is a timestamp rather than a flag because §7 counts the ten-hour
+    # correction window from submission, and an entry started on Monday and
+    # finished on Wednesday must not arrive with that window already spent.
+    submitted_at: datetime | None = Field(default=None, sa_type=utc_ts(), index=True)
+
     # Corrected after submission (V5 §7). NULL until somebody amends the entry.
     last_edited_at: datetime | None = Field(default=None, sa_type=utc_ts())
     last_edited_by: int | None = Field(default=None, foreign_key="users.id")

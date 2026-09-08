@@ -316,6 +316,11 @@ export function FloorView({ user, canRaise, canSeeTeam }: FloorViewProps) {
             setLogging(false);
             void load();
           }}
+          onDrafted={() => {
+            // A draft reaches nothing this screen shows, so there is nothing
+            // to reload — closing is the whole of the response.
+            setLogging(false);
+          }}
         />
       )}
 

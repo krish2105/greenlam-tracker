@@ -419,7 +419,18 @@
     "rejectedCount_other": "{{count}} शीट रिजेक्ट",
     "vsTarget": "लक्ष्य के मुक़ाबले",
     "targetOf": "लक्ष्य {{target}}",
-    "noTarget": "कोई लक्ष्य दर्ज नहीं"
+    "noTarget": "कोई लक्ष्य दर्ज नहीं",
+    "saveDraft": "बाद के लिए सेव करें",
+    "draftHint": "सिर्फ़ आपके लिए सेव हुआ। Done दबाने तक यह किसी रिपोर्ट में नहीं जाएगा।",
+    "resumeTitle": "यह एंट्री पूरी करें",
+    "draftsTitle": "अभी पूरी नहीं हुई",
+    "draftsHint": "ये सिर्फ़ आपको दिखती हैं। पूरी करने के लिए किसी पर टैप करें।",
+    "draftNoLoad": "लोड नं. नहीं",
+    "draftEmpty": "अभी कुछ नहीं भरा",
+    "draftSheets_one": "1 शीट",
+    "draftSheets_other": "{{count}} शीट",
+    "draftDiscard": "हटाएँ",
+    "savedDraft": "सेव हो गया। जब चाहें पूरा कर लें।"
   },
   "plantMap": {
     "title": "प्लांट, समय के हिसाब से",

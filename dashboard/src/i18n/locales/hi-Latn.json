@@ -419,7 +419,18 @@
     "rejectedCount_other": "{{count}} sheet reject",
     "vsTarget": "Lakshya ke muqable",
     "targetOf": "Lakshya {{target}}",
-    "noTarget": "Koi lakshya darj nahi"
+    "noTarget": "Koi lakshya darj nahi",
+    "saveDraft": "Baad ke liye save karein",
+    "draftHint": "Sirf aapke liye save hua. Done dabane tak yeh kisi report mein nahi jaayega.",
+    "resumeTitle": "Yeh entry poori karein",
+    "draftsTitle": "Abhi poori nahi hui",
+    "draftsHint": "Ye sirf aapko dikhti hain. Poori karne ke liye kisi par tap karein.",
+    "draftNoLoad": "Load No. nahi",
+    "draftEmpty": "abhi kuch nahi bhara",
+    "draftSheets_one": "1 sheet",
+    "draftSheets_other": "{{count}} sheet",
+    "draftDiscard": "Hataayein",
+    "savedDraft": "Save ho gaya. Jab chahein poora kar lein."
   },
   "plantMap": {
     "title": "Plant, samay ke hisaab se",

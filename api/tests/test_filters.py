@@ -118,6 +118,9 @@ class TestProductionFilters:
             produced_qty=qty,
             rejected_qty=0,
             logged_by=1,
+            # Submitted, because analytics only counts finished entries
+            # (V5 §6.3). A row inserted straight into the table is a draft.
+            submitted_at=utcnow(),
         )
         session.add(row)
         session.commit()

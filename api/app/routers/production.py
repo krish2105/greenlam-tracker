@@ -39,7 +39,9 @@ from ..schemas_production import (
     MachinePerformance,
     ProductionAnalytics,
     ProductionCreate,
+    ProductionDraftRead,
     ProductionRead,
+    ProductionUpdate,
     RejectSlice,
     RollQualityRead,
     SegmentRow,
@@ -74,26 +76,19 @@ def log_production(
 ) -> ProductionRead:
     """One row per machine per shift per product.
 
-    A rejection without a reason is refused — the database CHECK enforces it
-    too. A Pareto with an "unknown" bar larger than every named cause tells
-    nobody anything, and once operators learn they can skip the field they
-    always will.
+    `draft: true` saves it without finishing it (V5 §6.3) — see `_assert_final`
+    for what that defers, and `submit_production` for where it lands.
     """
     machine = session.get(Machine, body.machine_id)
     if machine is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Machine not found")
     assert_visible(machine, principal)
 
-    if body.rejected_qty > 0 and body.reject_reason_id is None:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Choose a reject reason — a rejection with no reason cannot be acted on.",
-        )
-    if body.rejected_qty > body.produced_qty:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Rejected cannot be more than produced.",
-        )
+    # A draft is a half-filled form on purpose (V5 §6.3), so the rules that
+    # protect the numbers wait for Done. They are not skipped — `_assert_final`
+    # runs at submission, which is the moment the row starts counting.
+    if not body.draft:
+        _assert_final(body.produced_qty, body.rejected_qty, body.reject_reason_id)
 
     # The Load No. is what the press cycle is planned around, and it is the
     # only handle a finished sheet has back to the load it belongs to. Missing
@@ -104,7 +99,7 @@ def log_production(
     # operator has it, and forcing it there would only teach people to type
     # something.
     load_no = (body.load_no or "").strip() or None
-    if machine.production_form == "press" and load_no is None:
+    if not body.draft and machine.production_form == "press" and load_no is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="A press entry needs its Load No. — it is what ties these sheets to the load.",
@@ -145,11 +140,34 @@ def log_production(
         reject_reason_id=body.reject_reason_id,
         target_qty=body.target_qty,
         logged_by=principal.user_id,
+        submitted_at=None if body.draft else utcnow(),
     )
     session.add(row)
     session.commit()
     session.refresh(row)
     return _to_read(row, session, principal)
+
+
+def _assert_final(produced: int, rejected: int, reason_id: int | None) -> None:
+    """The two rules that keep the reject analysis honest.
+
+    A rejection without a reason is refused — the database CHECK enforces it
+    too. A Pareto with an "unknown" bar larger than every named cause tells
+    nobody anything, and once operators learn they can skip the field they
+    always will.
+
+    Applied at submission rather than at save, so a draft can be half-filled.
+    """
+    if rejected > 0 and reason_id is None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Choose a reject reason — a rejection with no reason cannot be acted on.",
+        )
+    if rejected > produced:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Rejected cannot be more than produced.",
+        )
 
 
 def _to_read(row: ProductionLog, session: SessionDep, principal) -> ProductionRead:
@@ -176,6 +194,7 @@ def _to_read(row: ProductionLog, session: SessionDep, principal) -> ProductionRe
         # are going badly.
         reject_percent=round(100 * row.rejected_qty / total, 2) if total else 0.0,
         logged_by_name=logger.name if logger else "—",
+        submitted_at=row.submitted_at,
         last_edited_at=row.last_edited_at,
         last_edited_by_name=editor.name if editor else None,
     )
@@ -188,15 +207,176 @@ def list_production(
     days: int = _LIST_DAYS_Q,
     limit: int = _LIMIT_Q,
 ) -> list[ProductionRead]:
-    """Individual rows. Operational roles only — corporate uses /analytics."""
+    """Individual rows. Operational roles only — corporate uses /analytics.
+
+    Drafts are absent. V5 §6.4's daily log is a record of what the plant made,
+    and an entry nobody has finished is not that yet — it is somebody's
+    half-written note, visible to them alone through /production/drafts.
+    """
     since = (utcnow() - timedelta(days=days)).date()
     rows = session.exec(
         scope(ProductionLog, principal)
         .where(ProductionLog.log_date >= since)
+        .where(ProductionLog.submitted_at.is_not(None))
         .order_by(ProductionLog.log_date.desc())
         .limit(limit)
     ).all()
     return [_to_read(r, session, principal) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# Drafts (V5 §6.3)
+#
+# An operator fills this form between press cycles, not in one sitting. Before
+# drafts existed the only way to save half an entry was to save a whole one,
+# which put a sheet count of zero on the dashboard and then tagged the fix
+# "Edited" for the crime of being written in two goes.
+#
+# The line is drawn where the ticket lifecycle already draws it: a ticket is
+# freely editable while open and only tracked once it closes. Submitted is the
+# production entry's "closed".
+# ---------------------------------------------------------------------------
+
+
+def _to_draft_read(
+    row: ProductionLog, session: SessionDep, principal
+) -> ProductionDraftRead:
+    roll = (
+        session.get(ImpregnationLog, row.impregnation_log_id)
+        if row.impregnation_log_id
+        else None
+    )
+    return ProductionDraftRead(
+        **_to_read(row, session, principal).model_dump(),
+        machine_id=row.machine_id,
+        shift_id=row.shift_id,
+        design_id=row.design_id,
+        size_id=row.size_id,
+        texture_id=row.texture_id,
+        thickness_id=row.thickness_id,
+        reject_reason_id=row.reject_reason_id,
+        roll_no=roll.roll_no if roll else None,
+    )
+
+
+@router.get(
+    "/drafts", response_model=list[ProductionDraftRead], summary="My unfinished entries"
+)
+def list_drafts(principal: CanLogProduction, session: SessionDep) -> list[ProductionDraftRead]:
+    """Private to the person who started them.
+
+    Not scoped by supervisor or by plant role — §6.3 says a draft is the
+    operator's own, and a half-written entry with a wrong number in it is not
+    something a manager should be reading over somebody's shoulder.
+    """
+    rows = session.exec(
+        scope(ProductionLog, principal)
+        .where(
+            ProductionLog.submitted_at.is_(None),
+            ProductionLog.logged_by == principal.user_id,
+        )
+        .order_by(ProductionLog.created_at.desc())
+        .limit(50)
+    ).all()
+    return [_to_draft_read(r, session, principal) for r in rows]
+
+
+def _own_draft(log_id: UUID, principal, session: SessionDep) -> ProductionLog:
+    row = session.get(ProductionLog, log_id)
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not found")
+    assert_visible(row, principal)
+    if row.submitted_at is not None:
+        # Already final. Changing it now is a correction, with a reason and an
+        # audit row — §7, not this endpoint.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="This entry has been submitted. Use Correct to change it.",
+        )
+    if row.logged_by != principal.user_id:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="This draft belongs to someone else.",
+        )
+    return row
+
+
+@router.put("/{log_id}", response_model=ProductionDraftRead, summary="Edit a draft")
+def update_draft(
+    log_id: UUID,
+    body: ProductionUpdate,
+    principal: CanLogProduction,
+    session: SessionDep,
+) -> ProductionDraftRead:
+    """Change anything, as often as you like. Nothing is audited and nothing is
+    tagged Edited — there is no submitted value to have departed from yet."""
+    row = _own_draft(log_id, principal, session)
+
+    # `exclude_unset` and not `exclude_none`: clearing a field the operator
+    # filled in by mistake has to be possible, and that is sent as an explicit
+    # null.
+    for field, value in body.model_dump(exclude_unset=True).items():
+        if field == "roll_no":
+            roll = (
+                session.exec(
+                    scope(ImpregnationLog, principal).where(
+                        ImpregnationLog.roll_no == value.strip()
+                    )
+                ).first()
+                if value
+                else None
+            )
+            row.impregnation_log_id = roll.id if roll else None
+            continue
+        if field == "load_no":
+            row.load_no = (value or "").strip() or None
+            continue
+        setattr(row, field, value)
+
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return _to_draft_read(row, session, principal)
+
+
+@router.post("/{log_id}/submit", response_model=ProductionRead, summary="Done — submit an entry")
+def submit_production(
+    log_id: UUID, principal: CanLogProduction, session: SessionDep
+) -> ProductionRead:
+    """The press of Done that makes the entry real.
+
+    Everything the create endpoint would have refused is checked here instead,
+    against what the draft actually holds — this is the first moment the row
+    counts towards anything.
+    """
+    row = _own_draft(log_id, principal, session)
+    _assert_final(row.produced_qty, row.rejected_qty, row.reject_reason_id)
+
+    machine = session.get(Machine, row.machine_id) if row.machine_id else None
+    if machine is not None and machine.production_form == "press" and not row.load_no:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A press entry needs its Load No. — it is what ties these sheets to the load.",
+        )
+
+    row.submitted_at = utcnow()
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return _to_read(row, session, principal)
+
+
+@router.delete("/{log_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Discard a draft")
+def discard_draft(log_id: UUID, principal: CanLogProduction, session: SessionDep) -> None:
+    """Deleting a draft is deleting a note to self.
+
+    A submitted entry can never be deleted through any endpoint — it is part of
+    the plant's record, and the way to unmake a wrong one is a correction that
+    says who changed what. `_own_draft` refuses anything already submitted.
+    """
+    row = _own_draft(log_id, principal, session)
+    session.delete(row)
+    session.commit()
 
 
 @router.get(
@@ -223,7 +403,11 @@ def production_analytics(
     # Filters combine freely (V5 §11.1). `load_no` is the one that crosses
     # stages: one load number pulls the press, the AC room, the cutting and the
     # sanding rows together, which is exactly the trace §6.2A exists for.
-    stmt = scope(ProductionLog, principal).where(ProductionLog.log_date >= since)
+    stmt = scope(ProductionLog, principal).where(
+        ProductionLog.log_date >= since,
+        # A draft has not been claimed as true by anybody yet (V5 §6.3).
+        ProductionLog.submitted_at.is_not(None),
+    )
     if section_id is not None:
         stmt = stmt.where(ProductionLog.section_id == section_id)
     if machine_id is not None:
@@ -436,7 +620,10 @@ def machine_performance(
     produced: dict[int, int] = defaultdict(int)
     rejected: dict[int, int] = defaultdict(int)
     for p in session.exec(
-        scope(ProductionLog, principal).where(ProductionLog.log_date >= since_day)
+        scope(ProductionLog, principal).where(
+            ProductionLog.log_date >= since_day,
+            ProductionLog.submitted_at.is_not(None),
+        )
     ).all():
         if p.machine_id is None:
             continue
@@ -539,7 +726,10 @@ def roll_quality(
     buckets = {True: [0, 0], False: [0, 0]}  # out_of_spec -> [produced, rejected]
     linked = 0
     for p in session.exec(
-        scope(ProductionLog, principal).where(ProductionLog.log_date >= since_day)
+        scope(ProductionLog, principal).where(
+            ProductionLog.log_date >= since_day,
+            ProductionLog.submitted_at.is_not(None),
+        )
     ).all():
         roll = rolls.get(p.impregnation_log_id) if p.impregnation_log_id else None
         if roll is None:

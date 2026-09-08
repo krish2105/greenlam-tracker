@@ -24,13 +24,21 @@ import { Sheet } from '../Sheet';
 export function LogProductionSheet({
   onClose,
   onLogged,
+  onDrafted,
   machineId: preselected = null,
+  draft = null,
 }: {
   onClose: () => void;
   onLogged: () => void;
+  /** Saved but not finished. The caller closes the sheet and refreshes its
+      draft list; the entry has reached nothing else. */
+  onDrafted: () => void;
   /** Set when the machine was already chosen on the production screen. The
       sheet then skips its own picker rather than asking twice. */
   machineId?: number | null;
+  /** Resuming an unfinished entry (V5 §6.3). The form comes back exactly as it
+      was left, and Done submits that row rather than creating a second one. */
+  draft?: api.ProductionDraft | null;
 }) {
   const { t, i18n } = useTranslation();
   const [machines, setMachines] = useState<api.Machine[]>([]);
@@ -39,8 +47,8 @@ export function LogProductionSheet({
   const [reasons, setReasons] = useState<api.RejectReason[]>([]);
 
   const [query, setQuery] = useState('');
-  const [machineId, setMachineId] = useState<number | null>(preselected);
-  const [shiftId, setShiftId] = useState<number | null>(null);
+  const [machineId, setMachineId] = useState<number | null>(draft?.machine_id ?? preselected);
+  const [shiftId, setShiftId] = useState<number | null>(draft?.shift_id ?? null);
   // The legacy free-text pair. Still sent so existing rows and the Excel
   // import keep round-tripping, but derived from the master selection rather
   // than typed — the *_id columns are what the analysis groups by.
@@ -51,15 +59,17 @@ export function LogProductionSheet({
   const [textures, setTextures] = useState<api.Vocab[]>([]);
   const [thicknesses, setThicknesses] = useState<api.Vocab[]>([]);
   const [rolls, setRolls] = useState<string[]>([]);
-  const [designId, setDesignId] = useState<number | null>(null);
-  const [sizeId, setSizeId] = useState<number | null>(null);
-  const [textureId, setTextureId] = useState<number | null>(null);
-  const [thicknessId, setThicknessId] = useState<number | null>(null);
-  const [rollNo, setRollNo] = useState('');
-  const [loadNo, setLoadNo] = useState('');
-  const [produced, setProduced] = useState('');
-  const [rejected, setRejected] = useState('0');
-  const [reasonId, setReasonId] = useState<number | null>(null);
+  const [designId, setDesignId] = useState<number | null>(draft?.design_id ?? null);
+  const [sizeId, setSizeId] = useState<number | null>(draft?.size_id ?? null);
+  const [textureId, setTextureId] = useState<number | null>(draft?.texture_id ?? null);
+  const [thicknessId, setThicknessId] = useState<number | null>(draft?.thickness_id ?? null);
+  const [rollNo, setRollNo] = useState(draft?.roll_no ?? '');
+  const [loadNo, setLoadNo] = useState(draft?.load_no ?? '');
+  // A draft may legitimately hold nothing yet, which is a different thing from
+  // holding zero — an empty box invites the number, a typed 0 asserts it.
+  const [produced, setProduced] = useState(draft ? String(draft.produced_qty || '') : '');
+  const [rejected, setRejected] = useState(draft ? String(draft.rejected_qty) : '0');
+  const [reasonId, setReasonId] = useState<number | null>(draft?.reject_reason_id ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -152,6 +162,24 @@ export function LogProductionSheet({
   const rejectedCount = Number(rejected) || 0;
   const producedCount = Number(produced) || 0;
 
+  function fields() {
+    return {
+      machine_id: machineId!,
+      shift_id: shiftId,
+      size: size.trim(),
+      texture,
+      design_id: designId,
+      size_id: sizeId,
+      texture_id: textureId,
+      thickness_id: thicknessId,
+      roll_no: rollNo.trim() || null,
+      load_no: loadNo.trim() || null,
+      produced_qty: producedCount,
+      rejected_qty: rejectedCount,
+      reject_reason_id: rejectedCount > 0 ? reasonId : null,
+    };
+  }
+
   async function submit() {
     if (machineId === null) return setError(t('production.errors.needMachine'));
     if (!producedCount) return setError(t('production.errors.needQty'));
@@ -162,24 +190,42 @@ export function LogProductionSheet({
     setBusy(true);
     setError('');
     try {
-      await api.logProduction({
-        machine_id: machineId,
-        shift_id: shiftId,
-        size: size.trim(),
-        texture,
-        design_id: designId,
-        size_id: sizeId,
-        texture_id: textureId,
-        thickness_id: thicknessId,
-        roll_no: rollNo.trim() || null,
-        load_no: loadNo.trim() || null,
-        produced_qty: producedCount,
-        rejected_qty: rejectedCount,
-        reject_reason_id: rejectedCount > 0 ? reasonId : null,
-      });
+      if (draft) {
+        // Two calls, and they have to be two: the values go up first, then the
+        // Done press validates what is actually stored. Submitting and then
+        // saving would let a row become final and change afterwards.
+        await api.updateDraft(draft.id, fields());
+        await api.submitProduction(draft.id);
+      } else {
+        await api.logProduction(fields());
+      }
       onLogged();
-    } catch {
-      setError(t('production.errors.failed'));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('production.errors.failed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Save for later (V5 §6.3).
+   *
+   * The only thing checked is the machine, because a row has to belong to
+   * something to exist at all. Everything else — the sheet count, the reject
+   * reason, the Load No. — is exactly what the operator has come back to
+   * finish, and refusing to save without them would make the button useless on
+   * the one form it exists for.
+   */
+  async function saveDraft() {
+    if (machineId === null) return setError(t('production.errors.needMachine'));
+    setBusy(true);
+    setError('');
+    try {
+      if (draft) await api.updateDraft(draft.id, fields());
+      else await api.logProduction({ ...fields(), draft: true });
+      onDrafted();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('production.errors.failed'));
     } finally {
       setBusy(false);
     }
@@ -192,7 +238,7 @@ export function LogProductionSheet({
   };
 
   return (
-    <Sheet title={t('production.logTitle')} onClose={onClose}>
+    <Sheet title={draft ? t('production.resumeTitle') : t('production.logTitle')} onClose={onClose}>
       <div className="space-y-5">
         <div>
           <label
@@ -452,6 +498,21 @@ export function LogProductionSheet({
         >
           {busy ? t('production.submitting') : t('production.submit')}
         </button>
+
+        {/* Deliberately quieter than Done, and below it. The job is to finish
+            the entry; saving half of it is the fallback, not the goal. */}
+        <button
+          type="button"
+          onClick={() => void saveDraft()}
+          disabled={busy}
+          className="arch w-full border py-3 font-medium disabled:opacity-60"
+          style={{ borderColor: 'var(--line-strong)', color: 'var(--ink)' }}
+        >
+          {t('production.saveDraft')}
+        </button>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>
+          {t('production.draftHint')}
+        </p>
       </div>
     </Sheet>
   );

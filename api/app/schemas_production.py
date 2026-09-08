@@ -44,6 +44,36 @@ class ProductionCreate(BaseModel):
     reject_reason_id: int | None = None
     target_qty: int | None = Field(default=None, ge=0)
 
+    # Save without finishing (V5 §6.3). A draft is private to the person who
+    # started it and reaches no dashboard, so the validation that protects the
+    # numbers — a rejection needs a reason, rejected cannot exceed produced —
+    # is deferred to the Done press rather than applied here. Enforcing it on a
+    # half-filled form would make the save button refuse the exact state the
+    # feature exists to save.
+    draft: bool = False
+
+
+class ProductionUpdate(BaseModel):
+    """Editing a draft. Every field optional; whatever is sent replaces what is
+    there, and nothing is recorded as a correction because there is nothing
+    final to correct yet."""
+
+    shift_id: int | None = None
+    log_date: date | None = None
+    size: str | None = Field(default=None, max_length=80)
+    texture: str | None = Field(default=None, max_length=80)
+    thickness: str | None = Field(default=None, max_length=40)
+    design_id: int | None = None
+    size_id: int | None = None
+    texture_id: int | None = None
+    thickness_id: int | None = None
+    roll_no: str | None = Field(default=None, max_length=64)
+    load_no: str | None = Field(default=None, max_length=64)
+    produced_qty: int | None = Field(default=None, ge=0)
+    rejected_qty: int | None = Field(default=None, ge=0)
+    reject_reason_id: int | None = None
+    target_qty: int | None = Field(default=None, ge=0)
+
 
 class ProductionRead(BaseModel):
     id: UUID
@@ -59,8 +89,31 @@ class ProductionRead(BaseModel):
     target_qty: int | None
     reject_percent: float
     logged_by_name: str
+    # NULL while it is a draft. The floor shows it as "Not submitted"; every
+    # aggregate ignores the row entirely.
+    submitted_at: datetime | None = None
     last_edited_at: datetime | None = None
     last_edited_by_name: str | None = None
+
+
+class ProductionDraftRead(ProductionRead):
+    """A draft, plus the raw ids the form needs to repopulate itself.
+
+    `ProductionRead` is built for reading — it carries a machine's code and a
+    reason's name, because that is what a log row shows. Resuming a draft needs
+    the other direction: the ids that were selected, so the pickers come back
+    the way the operator left them. Returning them on every log row instead
+    would put four columns nobody reads into the busiest payload in the app.
+    """
+
+    machine_id: int | None
+    shift_id: int | None
+    design_id: int | None
+    size_id: int | None
+    texture_id: int | None
+    thickness_id: int | None
+    reject_reason_id: int | None
+    roll_no: str | None
 
 
 class RejectSlice(BaseModel):

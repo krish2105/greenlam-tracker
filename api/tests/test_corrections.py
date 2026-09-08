@@ -345,7 +345,10 @@ class TestProductionEntries:
     ):
         log_id = _entry(client, plant_fixture, auth_headers)
         row = session.get(ProductionLog, log_id)
-        row.created_at = utcnow() - timedelta(hours=11)
+        # Backdated on the SUBMISSION, not on creation. Since V5 §6.3 an entry
+        # can be started on Monday and finished on Wednesday, and it is the
+        # Done press the ten hours run from.
+        row.submitted_at = utcnow() - timedelta(hours=11)
         session.add(row)
         session.commit()
 

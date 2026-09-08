@@ -509,6 +509,10 @@ def _generate_production(
                         target_qty=500,
                         impregnation_log_id=paper_roll.id if paper_roll is not None else None,
                         logged_by=logger.id,
+                        # Demo history is finished work. A row left as a draft
+                        # would be invisible to every chart the demo exists to
+                        # fill (V5 §6.3).
+                        submitted_at=midnight(day) + timedelta(hours=23),
                     )
                 )
                 made += 1
