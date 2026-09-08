@@ -138,7 +138,10 @@ export function OutputTrend({ data }: { data: OutputDay[] }) {
             {data.map((d, i) => {
               const good = yQty(d.produced);
               const top = yQty(d.produced + d.rejected);
-              const w = Math.max(1, band * 0.62);
+              // Capped, because a single logged day would otherwise draw one
+              // bar the full width of the card — which reads as "this is what
+              // the plant makes" rather than "one day, so far".
+              const w = Math.max(1, Math.min(band * 0.62, 44));
               const bx = x(i) - w / 2;
               const on = focus.index === i;
               return (
