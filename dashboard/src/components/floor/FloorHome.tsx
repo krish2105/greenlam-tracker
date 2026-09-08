@@ -76,12 +76,17 @@ export function FloorHome({ user }: { user: api.ApiUser }) {
   const { t } = useTranslation();
 
   const showProduction = can(user.areas, 'logProduction');
-  const worksTickets = can(user.areas, 'workTicket') || can(user.areas, 'reopenTicket');
+  // Three different people walk through this door and it should not promise
+  // the same thing to all of them. A technician repairs. A supervisor or
+  // manager does not — they reopen a fix that did not hold and hand work to a
+  // named person. An operator only reports.
+  const worksTickets = can(user.areas, 'workTicket');
+  const overseesTickets = can(user.areas, 'reopenTicket') || can(user.areas, 'reassignTicket');
   // Reporting a breakdown lives behind this door too, and reporting one is
   // never gated (CLAUDE.md) — the person standing next to the stopped machine
   // is whoever happens to be standing next to it, usually an operator. So the
   // door opens for them; only what it PROMISES changes.
-  const showMaintenance = worksTickets || can(user.areas, 'raiseTicket');
+  const showMaintenance = worksTickets || overseesTickets || can(user.areas, 'raiseTicket');
 
   return (
     <div className="pt-2">
@@ -104,7 +109,11 @@ export function FloorHome({ user }: { user: api.ApiUser }) {
           tone="accent"
           title={t('floorHome.maintenance')}
           detail={t(
-            worksTickets ? 'floorHome.maintenanceDetail' : 'floorHome.maintenanceDetailRaiseOnly',
+            worksTickets
+              ? 'floorHome.maintenanceDetail'
+              : overseesTickets
+                ? 'floorHome.maintenanceDetailOversee'
+                : 'floorHome.maintenanceDetailRaiseOnly',
           )}
           icon={
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"

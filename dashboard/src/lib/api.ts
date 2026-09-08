@@ -1278,3 +1278,35 @@ export function subscribeToPush(body: PushSubscriptionBody): Promise<unknown> {
 export function unsubscribeFromPush(body: PushSubscriptionBody): Promise<unknown> {
   return request('/push/subscribe', { method: 'DELETE', body: JSON.stringify(body) });
 }
+
+
+// ---------------------------------------------------------------------------
+// Reassigning a ticket (V5 §3, §15.5)
+// ---------------------------------------------------------------------------
+
+export interface Assignee {
+  user_id: number;
+  name: string;
+  employee_id: string;
+  /** Everything they hold that is not closed — assigned, in repair, or awaiting RCA. */
+  open_tickets: number;
+}
+
+/** Everyone holding Maintenance, least loaded first. */
+export function assignableTo(): Promise<Assignee[]> {
+  return request<Assignee[]>('/tickets/assignable-to');
+}
+
+/**
+ * Move a ticket to somebody else.
+ *
+ * Both an engineer passing their own on at changeover and a manager assigning
+ * work they are not doing themselves — the server tells the two apart by
+ * capability, so the client does not have to.
+ */
+export function handoffTicket(ticketId: string, toUserId: number): Promise<unknown> {
+  return request(`/tickets/${ticketId}/handoff`, {
+    method: 'POST',
+    body: JSON.stringify({ to_user_id: toUserId, submission_id: crypto.randomUUID() }),
+  });
+}

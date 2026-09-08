@@ -355,6 +355,39 @@ SEEDED_TABLES = (
 )
 
 
+# The admin-editable dials, and their shipped defaults.
+#
+# Migrations 0012 and 0015 insert these, which covers an existing plant. It does
+# NOT cover `--reset`: that deletes `plant_settings` along with everything else
+# and migrations do not re-run, so a reseeded database had no settings rows at
+# all. Behaviour stayed correct — `plant_settings.criticality_thresholds` falls
+# back to the values in `lifecycle.py` — but an admin opening a settings screen
+# would have found nothing to edit, which is the silent kind of missing.
+#
+# `no_follow_up.window` is NULL on purpose. V5 §16 defers that number until the
+# trial produces a baseline, and the worker skips the check while it is unset.
+SETTINGS: tuple[tuple[str, int | None], ...] = (
+    ("criticality.press.low_max", 30),
+    ("criticality.press.medium_max", 60),
+    ("criticality.other.low_max", 60),
+    ("criticality.other.medium_max", 120),
+    ("repeat_failure.window", 48 * 60),
+    ("no_follow_up.window", None),
+)
+
+
+def _seed_settings(session: Session, plant_id: int) -> None:
+    existing = {
+        row for row in session.exec(
+            select(PlantSetting.key).where(PlantSetting.plant_id == plant_id)
+        ).all()
+    }
+    for key, minutes in SETTINGS:
+        if key not in existing:
+            session.add(PlantSetting(plant_id=plant_id, key=key, minutes=minutes))
+    session.commit()
+
+
 def guard_remote_database() -> None:
     host = (urlparse(settings.database_url.replace("+psycopg", "")).hostname or "").lower()
     if host in LOCAL_HOSTS or settings.allow_remote_seed:
@@ -527,6 +560,8 @@ def seed(session: Session, with_history: bool = True) -> None:
             session.add(UserAccessArea(user_id=user.id, area=area))
 
     session.commit()
+
+    _seed_settings(session, plant.id)
 
     ticket_count = _seed_tickets(session, plant.id, unit.id, section_ids)
 

@@ -153,7 +153,8 @@
     "edited": "Badla gaya",
     "editedBy": "Darj hone ke baad {{name}} ne sudhara.",
     "correct": "Galti sudharein",
-    "correctHint": "Sirf likha hua badalta hai. Ticket band hi rahega aur machine theek hi mani jayegi."
+    "correctHint": "Sirf likha hua badalta hai. Ticket band hi rahega aur machine theek hi mani jayegi.",
+    "overseeOnly": "Is par maintenance kaam karegi. Aap ise dobara khol sakte hain, ya kisi ko somp sakte hain."
   },
   "board": {
     "title": "Dashboard",
@@ -579,7 +580,8 @@
     "production": "Production",
     "productionDetail": "Is shift mein machine ne kya banaya, darj karein",
     "subtitleOne": "Yeh raha jo aap darj kar sakte hain.",
-    "maintenanceDetailRaiseOnly": "Ruki hui machine ki khabar dein"
+    "maintenanceDetailRaiseOnly": "Ruki hui machine ki khabar dein",
+    "maintenanceDetailOversee": "Dekhein kis par dhyan chahiye, aur kisi ko sompein"
   },
   "resin": {
     "title": "Resin batch — {{machine}}",
@@ -678,5 +680,15 @@
     "iosStep1": "Safari mein neeche share button dabayein.",
     "iosStep2": "“Add to Home Screen” chunein.",
     "iosStep3": "Wahin se kholein, aur alert chalu karein."
+  },
+  "reassign": {
+    "action": "Kisi ko sompein",
+    "title": "{{ticket}} kaun lega?",
+    "blurb": "{{machine}} par kaun kaam karega, woh chunein. Unhe turant apni list mein dikh jayega.",
+    "free": "khaali",
+    "holding": "{{count}} khule",
+    "assigning": "…",
+    "nobody": "Abhi kisi ke paas Maintenance pahunch nahi hai. Admin use Access screen se deta hai.",
+    "failed": "sompa nahi ja saka. Dobara koshish karein."
   }
 }

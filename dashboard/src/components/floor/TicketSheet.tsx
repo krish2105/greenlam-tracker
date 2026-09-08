@@ -21,15 +21,46 @@ import { formatDuration, scoreRootCause } from '@greenlam/core';
 
 import * as api from '../../lib/api';
 import { CorrectSheet } from './CorrectSheet';
+import { ReassignSheet } from './ReassignSheet';
 import { Sheet } from '../Sheet';
+
+/** Somebody owns it and it is not finished — the statuses a handoff is legal
+ *  from for an engineer. Mirrors `ACTIVE_STATUSES` in lifecycle_actions.py. */
+const ACTIVE_STATUSES = new Set([
+  'acknowledged',
+  'in_progress',
+  'on_hold_material',
+  'correction_pending',
+]);
 
 interface TicketSheetProps {
   ticketId: string;
   onClose: () => void;
   onChanged: () => void;
+  /**
+   * Whether this person may hand the ticket to somebody else on their behalf
+   * (V5 §15.5) — a Supervisor, Manager or Admin. An engineer passing on their
+   * OWN ticket at changeover is a different act with the same button, and the
+   * server allows it too; this only decides whether the button is offered on a
+   * ticket the person does not hold.
+   */
+  canReassign?: boolean;
+  /**
+   * Whether this person may actually work the ticket — acknowledge it, record
+   * material, repair it, write the RCA. A Supervisor or Manager holds none of
+   * that: they oversee. Showing them "I am on it" offers a button the server
+   * refuses, which reads as a broken app rather than as a boundary.
+   */
+  canWork?: boolean;
 }
 
-export function TicketSheet({ ticketId, onClose, onChanged }: TicketSheetProps) {
+export function TicketSheet({
+  ticketId,
+  onClose,
+  onChanged,
+  canReassign = false,
+  canWork = true,
+}: TicketSheetProps) {
   const { t } = useTranslation();
   const [ticket, setTicket] = useState<api.Ticket | null>(null);
   const [busy, setBusy] = useState(false);
@@ -42,6 +73,7 @@ export function TicketSheet({ ticketId, onClose, onChanged }: TicketSheetProps) 
   const [prevention, setPrevention] = useState('');
   const [rating, setRating] = useState(0);
   const [correcting, setCorrecting] = useState(false);
+  const [reassigning, setReassigning] = useState(false);
 
   useEffect(() => {
     void api.getTicket(ticketId).then(setTicket).catch(() => setError(t('ticket.loadFailed')));
@@ -146,6 +178,29 @@ export function TicketSheet({ ticketId, onClose, onChanged }: TicketSheetProps) 
           </p>
         )}
 
+        {/* Two people reach this button and the server tells them apart.
+            Somebody who reassigns on others' behalf (Supervisor, Manager,
+            Admin) gets it on any unfinished ticket, including one nobody has
+            picked up — "Ramesh, you take Press-4". An engineer gets it only
+            once a ticket is actually being worked, because passing on a ticket
+            nobody holds is assigning work rather than handing over your own,
+            and the server refuses that with a 409.
+
+            Mirrored here rather than letting the click fail: a button that
+            explains itself by erroring is a button nobody presses twice. */}
+        {ticket.current_stage < 6 &&
+          (canReassign || (canWork && ACTIVE_STATUSES.has(ticket.status))) && (
+          <button
+            type="button"
+            onClick={() => setReassigning(true)}
+            disabled={busy}
+            className="arch w-full border py-3 font-medium disabled:opacity-60"
+            style={{ borderColor: 'var(--line-strong)', color: 'var(--ink)' }}
+          >
+            {t('reassign.action')}
+          </button>
+        )}
+
         <StageTrail stage={ticket.current_stage} />
 
         {ticket.immediate_correction && (
@@ -172,9 +227,16 @@ export function TicketSheet({ ticketId, onClose, onChanged }: TicketSheetProps) 
           </p>
         )}
 
-        {/* One stage, one action. */}
+        {/* One stage, one action — for whoever actually does the work. Somebody
+            who only oversees sees the ticket, its history and the reassign
+            button above, and none of the buttons that would 403. */}
         <div className="border-t pt-4" style={{ borderColor: 'var(--line)' }}>
-          {ticket.current_stage === 0 && (
+          {!canWork && ticket.current_stage < 6 && (
+            <p style={{ color: 'var(--ink-muted)', fontSize: 'var(--text-sm)' }}>
+              {t('ticket.overseeOnly')}
+            </p>
+          )}
+          {canWork && ticket.current_stage === 0 && (
             <Action
               busy={busy}
               label={t('ticket.acknowledge')}
@@ -182,7 +244,7 @@ export function TicketSheet({ ticketId, onClose, onChanged }: TicketSheetProps) 
             />
           )}
 
-          {ticket.current_stage === 1 && (
+          {canWork && ticket.current_stage === 1 && (
             <div className="space-y-2">
               <Action
                 busy={busy}
@@ -197,7 +259,7 @@ export function TicketSheet({ ticketId, onClose, onChanged }: TicketSheetProps) 
             </div>
           )}
 
-          {ticket.current_stage === 2 && (
+          {canWork && ticket.current_stage === 2 && (
             <Action
               busy={busy}
               label={t('ticket.startRepair')}
@@ -205,7 +267,7 @@ export function TicketSheet({ ticketId, onClose, onChanged }: TicketSheetProps) 
             />
           )}
 
-          {ticket.current_stage === 3 && (
+          {canWork && ticket.current_stage === 3 && (
             <Field
               id="correction"
               label={t('ticket.correctionPrompt')}
@@ -227,7 +289,7 @@ export function TicketSheet({ ticketId, onClose, onChanged }: TicketSheetProps) 
             />
           )}
 
-          {ticket.current_stage === 4 && (
+          {canWork && ticket.current_stage === 4 && (
             <WhyWhy
               why1={why1}
               why2={why2}
@@ -250,7 +312,7 @@ export function TicketSheet({ ticketId, onClose, onChanged }: TicketSheetProps) 
             />
           )}
 
-          {ticket.current_stage === 5 && (
+          {canWork && ticket.current_stage === 5 && (
             <div className="space-y-3">
               <p className="font-medium" style={{ color: 'var(--ink)' }}>
                 {t('ticket.ratePrompt')}
@@ -318,6 +380,18 @@ export function TicketSheet({ ticketId, onClose, onChanged }: TicketSheetProps) 
           )}
         </div>
       </div>
+
+      {reassigning && (
+        <ReassignSheet
+          ticket={ticket}
+          onClose={() => setReassigning(false)}
+          onReassigned={() => {
+            setReassigning(false);
+            void api.getTicket(ticketId).then(setTicket).catch(() => undefined);
+            onChanged();
+          }}
+        />
+      )}
 
       {correcting && (
         <CorrectSheet

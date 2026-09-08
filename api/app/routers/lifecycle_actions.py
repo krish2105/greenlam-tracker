@@ -26,7 +26,7 @@ from sqlmodel import select
 
 from .. import notify
 from ..deps import PrincipalDep, SessionDep
-from ..models import Machine, Ticket, TicketEvent, TicketPendingWindow, User
+from ..models import Machine, Ticket, TicketEvent, TicketPendingWindow, User, UserAccessArea
 from ..models.base import utcnow
 from ..models.maintenance import PENDING_KINDS
 from ..tenancy import assert_visible
@@ -113,6 +113,14 @@ def _record(session, ticket: Ticket, principal, kind: str, ts, source, payload) 
             client_ts=ts,
             ts_source=source,
         )
+    )
+
+
+def _areas_of(session, user_id: int) -> set[str]:
+    return set(
+        session.exec(
+            select(UserAccessArea.area).where(UserAccessArea.user_id == user_id)
+        ).all()
     )
 
 
@@ -257,25 +265,53 @@ def resume(ticket_id: UUID, body: ClaimIn, principal: PrincipalDep, session: Ses
 def handoff(
     ticket_id: UUID, body: HandoffIn, principal: PrincipalDep, session: SessionDep
 ) -> dict:
-    """Move a ticket to another person, from any active status.
+    """Move a ticket to another person.
+
+    TWO DIFFERENT ACTIONS THROUGH ONE DOOR
+
+    An engineer passing their own ticket on at shift changeover, and a manager
+    assigning somebody else's work. V5 §15.5 allows both, so both capabilities
+    open this: `work_ticket` for the first, `reassign_ticket` for the second.
+    Gating it on `work_ticket` alone — which is what this did — meant a Manager
+    could not do the one thing V5 §3 names as their job.
 
     No reason is asked for. Handoff happens at shift changeover twenty times a
     week, and a mandatory box would be filled with "shift" until it told you
     nothing.
     """
-    _require(principal, "work_ticket")
+    if not (principal.can("work_ticket") or principal.can("reassign_ticket")):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, detail="Your role does not have access to this."
+        )
     ticket = _load(ticket_id, principal, session)
     if _already_done(session, body.submission_id):
         return {"ok": True, "repeat": True}
 
-    if ticket.status not in ACTIVE_STATUSES:
+    # A raised-but-unclaimed ticket can be assigned by somebody with
+    # `reassign_ticket`. "Ramesh, you take Press-4" is precisely the manager
+    # action V5 §3 describes, and requiring a claim first made it impossible —
+    # the manager would have had to acknowledge the ticket themselves and then
+    # hand it over, which puts their name on a repair they are not doing.
+    #
+    # Somebody who only works tickets still cannot: passing on a ticket nobody
+    # holds is assigning work, not handing over your own.
+    assignable = ACTIVE_STATUSES | ({"raised"} if principal.can("reassign_ticket") else set())
+    if ticket.status not in assignable:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            detail="Only a ticket somebody is working on can be handed off.",
+            detail="This ticket is finished — reopen it before handing it to anybody.",
         )
     target = session.get(User, body.to_user_id)
     if target is None or target.plant_id != ticket.plant_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such person in this plant.")
+
+    # Handing a breakdown to somebody who cannot open it is a silent dead end:
+    # the ticket leaves the assigner's list and never appears on anyone else's.
+    if "maintenance" not in _areas_of(session, target.id):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"{target.name} does not have Maintenance access, so cannot work this.",
+        )
 
     ts, source = _stamp(body)
     previous = ticket.owner_id
@@ -343,3 +379,77 @@ def reopen(ticket_id: UUID, body: ReopenIn, principal: PrincipalDep, session: Se
         "reopen_count": ticket.reopen_count,
         "repeat": False,
     }
+
+
+class Assignee(BaseModel):
+    user_id: int
+    name: str
+    employee_id: str
+    # How many tickets they already hold. A manager choosing between two
+    # technicians is usually asking exactly this, and without it the choice is
+    # made on who they remember rather than who is free.
+    open_tickets: int
+
+
+@router.get(
+    "/assignable-to",
+    response_model=list[Assignee],
+    summary="Who a ticket can be handed to",
+)
+def assignable_to(principal: PrincipalDep, session: SessionDep) -> list[Assignee]:
+    """Everyone holding Maintenance, with their current load.
+
+    Its own endpoint rather than reusing the admin user list, which requires
+    `edit_masters` — a Manager has no business enumerating every account in the
+    plant, and needs exactly this one list to do their job.
+    """
+    if not (principal.can("work_ticket") or principal.can("reassign_ticket")):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, detail="Your role does not have access to this."
+        )
+
+    ids = session.exec(
+        select(UserAccessArea.user_id).where(UserAccessArea.area == "maintenance")
+    ).all()
+    if not ids:
+        return []
+
+    people = session.exec(
+        select(User).where(
+            User.id.in_(ids),
+            User.plant_id == principal.home_plant_id,
+            User.is_active.is_(True),
+        )
+    ).all()
+
+    # Everything they own that is not finished — which includes a ticket a
+    # manager just assigned but they have not acknowledged yet, and one sitting
+    # half-closed waiting on its RCA. Both are work this person still holds,
+    # and "who is free" is the question this list exists to answer.
+    #
+    # Counting only ACTIVE_STATUSES missed exactly the tickets a manager had
+    # just handed out, so the next assignment went to the same person again.
+    load: dict[int, int] = {}
+    for owner_id in session.exec(
+        select(Ticket.owner_id).where(
+            Ticket.plant_id == principal.home_plant_id,
+            Ticket.owner_id.is_not(None),
+            Ticket.status != "closed",
+        )
+    ).all():
+        load[owner_id] = load.get(owner_id, 0) + 1
+
+    return sorted(
+        (
+            Assignee(
+                user_id=p.id,
+                name=p.name,
+                employee_id=p.employee_id,
+                open_tickets=load.get(p.id, 0),
+            )
+            for p in people
+        ),
+        # Least loaded first. The list is a suggestion about who is free, not
+        # an alphabetical directory.
+        key=lambda a: (a.open_tickets, a.name),
+    )

@@ -153,7 +153,8 @@
     "edited": "Edited",
     "editedBy": "Amended by {{name}} after it was logged.",
     "correct": "Correct a mistake",
-    "correctHint": "Changes what a field says. The ticket stays closed and the machine stays fixed."
+    "correctHint": "Changes what a field says. The ticket stays closed and the machine stays fixed.",
+    "overseeOnly": "Maintenance works this one. You can reopen it, or give it to someone."
   },
   "board": {
     "title": "Dashboard",
@@ -579,7 +580,8 @@
     "production": "Production",
     "productionDetail": "Log what a machine made this shift",
     "subtitleOne": "Here is what you can log.",
-    "maintenanceDetailRaiseOnly": "Report a machine that has stopped"
+    "maintenanceDetailRaiseOnly": "Report a machine that has stopped",
+    "maintenanceDetailOversee": "See what needs a look, and give it to someone"
   },
   "resin": {
     "title": "Resin batch — {{machine}}",
@@ -678,5 +680,15 @@
     "iosStep1": "Tap the Share button at the bottom of Safari.",
     "iosStep2": "Choose “Add to Home Screen”.",
     "iosStep3": "Open it from there, and turn on alerts."
+  },
+  "reassign": {
+    "action": "Give this to someone",
+    "title": "Who should take {{ticket}}?",
+    "blurb": "Pick who works on {{machine}}. They will see it in their list straight away.",
+    "free": "free",
+    "holding": "{{count}} open",
+    "assigning": "…",
+    "nobody": "Nobody has Maintenance access yet. An admin grants it on the Access screen.",
+    "failed": "Could not hand it over. Try again."
   }
 }

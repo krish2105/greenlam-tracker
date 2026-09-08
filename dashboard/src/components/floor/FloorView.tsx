@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { formatDuration } from '@greenlam/core';
+import { can, formatDuration } from '@greenlam/core';
 
 import * as api from '../../lib/api';
 import { NotificationCard } from '../NotificationCard';
@@ -324,6 +324,8 @@ export function FloorView({ user, canRaise, canSeeTeam }: FloorViewProps) {
           ticketId={openTicket}
           onClose={() => setOpenTicket(null)}
           onChanged={() => void load()}
+          canReassign={can(user.areas, 'reassignTicket')}
+          canWork={can(user.areas, 'workTicket')}
         />
       )}
     </div>
