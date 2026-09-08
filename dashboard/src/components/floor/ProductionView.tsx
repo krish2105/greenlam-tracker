@@ -93,6 +93,10 @@ export function ProductionView() {
     }));
   }, [shown, sectionOf, sectionName]);
 
+  const resumingMachine = resuming
+    ? (machines.find((m) => m.id === resuming.machine_id) ?? null)
+    : null;
+
   const close = () => {
     setChosen(null);
     setResuming(null);
@@ -268,6 +272,7 @@ export function ProductionView() {
           machine={chosen}
           onClose={close}
           onLogged={() => done(t('production.savedProduction'))}
+          onDrafted={() => done(t('production.savedDraft'))}
         />
       )}
       {(chosen?.production_form === 'press' || chosen?.production_form === 'general') && (
@@ -279,7 +284,18 @@ export function ProductionView() {
         />
       )}
 
-      {resuming && (
+      {/* Resuming dispatches on the machine's form exactly as starting does.
+          An AC room draft coming back in the press form would show four
+          dropdowns it never had, and ask a question the room cannot answer. */}
+      {resuming && resumingMachine?.production_form === 'ac_room' ? (
+        <ACRoomSheet
+          machine={resumingMachine}
+          draft={resuming}
+          onClose={close}
+          onLogged={() => done(t('production.savedProduction'))}
+          onDrafted={() => done(t('production.savedDraft'))}
+        />
+      ) : resuming ? (
         <LogProductionSheet
           draft={resuming}
           machineId={resuming.machine_id}
@@ -287,7 +303,7 @@ export function ProductionView() {
           onLogged={() => done(t('production.savedProduction'))}
           onDrafted={() => done(t('production.savedDraft'))}
         />
-      )}
+      ) : null}
     </div>
   );
 }

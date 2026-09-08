@@ -32,21 +32,29 @@ export function ACRoomSheet({
   machine,
   onClose,
   onLogged,
+  onDrafted,
+  draft = null,
 }: {
   machine: api.Machine;
   onClose: () => void;
   onLogged: () => void;
+  /** Saved half-finished (V5 §6.3). It reaches nothing until Done. */
+  onDrafted: () => void;
+  /** Resuming an unfinished AC room entry. */
+  draft?: api.ProductionDraft | null;
 }) {
   const { t } = useTranslation();
 
   const [shifts, setShifts] = useState<api.Shift[]>([]);
   const [reasons, setReasons] = useState<api.RejectReason[]>([]);
-  const [shiftId, setShiftId] = useState<number | null>(null);
+  const [shiftId, setShiftId] = useState<number | null>(draft?.shift_id ?? null);
 
-  const [loadNo, setLoadNo] = useState('');
-  const [processed, setProcessed] = useState('');
-  const [rejected, setRejected] = useState('0');
-  const [reasonId, setReasonId] = useState<number | null>(null);
+  const [loadNo, setLoadNo] = useState(draft?.load_no ?? '');
+  const [processed, setProcessed] = useState(
+    draft ? String(draft.produced_qty || '') : '',
+  );
+  const [rejected, setRejected] = useState(draft ? String(draft.rejected_qty) : '0');
+  const [reasonId, setReasonId] = useState<number | null>(draft?.reject_reason_id ?? null);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -73,6 +81,42 @@ export function ACRoomSheet({
   } as const;
   const labelStyle = { fontSize: 'var(--text-sm)', color: 'var(--ink)' } as const;
 
+  function fields() {
+    return {
+      machine_id: machine.id,
+      shift_id: shiftId,
+      load_no: loadNo.trim() || null,
+      // Deliberately absent: the AC room has no size or texture to report.
+      produced_qty: processedCount,
+      rejected_qty: rejectedCount,
+      reject_reason_id: rejectedCount > 0 ? reasonId : null,
+    };
+  }
+
+  /**
+   * Save for later (V5 §6.3).
+   *
+   * The AC room writes to the same table as the press, so it gets the same
+   * half-finished state. Nothing is validated: a sheet count typed before the
+   * reject reason is known is exactly what this holds.
+   *
+   * No pack-order photo step afterwards — a photo hangs off an entry, and a
+   * draft is not one yet. It is offered when the entry is finished.
+   */
+  async function saveDraft() {
+    setBusy(true);
+    setError('');
+    try {
+      if (draft) await api.updateDraft(draft.id, fields());
+      else await api.logProduction({ ...fields(), draft: true });
+      onDrafted();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('production.errors.failed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function submit() {
     if (!processedCount) return setError(t('production.errors.needQty'));
     if (rejectedCount > processedCount) return setError(t('production.errors.tooManyRejects'));
@@ -81,15 +125,14 @@ export function ACRoomSheet({
     setBusy(true);
     setError('');
     try {
-      const row = await api.logProduction({
-        machine_id: machine.id,
-        shift_id: shiftId,
-        load_no: loadNo.trim() || null,
-        // Deliberately absent: the AC room has no size or texture to report.
-        produced_qty: processedCount,
-        rejected_qty: rejectedCount,
-        reject_reason_id: rejectedCount > 0 ? reasonId : null,
-      });
+      let row;
+      if (draft) {
+        // Values up first, then the Done press validates what is stored.
+        await api.updateDraft(draft.id, fields());
+        row = await api.submitProduction(draft.id);
+      } else {
+        row = await api.logProduction(fields());
+      }
       // The counts are saved. The pack-order photo is offered next rather than
       // demanded first — the entry needs an id for a photo to hang off, and
       // holding the numbers hostage while somebody finds the paperwork is how
@@ -103,7 +146,12 @@ export function ACRoomSheet({
   }
 
   return (
-    <Sheet title={t('acRoom.title', { machine: machine.code })} onClose={onClose}>
+    <Sheet
+      title={
+        draft ? t('production.resumeTitle') : t('acRoom.title', { machine: machine.code })
+      }
+      onClose={onClose}
+    >
       <div className="space-y-5">
         <div>
           <label htmlFor="ac-load" className="mb-1 block font-medium" style={labelStyle}>
@@ -249,15 +297,30 @@ export function ACRoomSheet({
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => void submit()}
-            disabled={busy}
-            className="arch w-full py-4 font-semibold disabled:opacity-60"
-            style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
-          >
-            {busy ? t('production.submitting') : t('production.submit')}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => void submit()}
+              disabled={busy}
+              className="arch w-full py-4 font-semibold disabled:opacity-60"
+              style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
+            >
+              {busy ? t('production.submitting') : t('production.submit')}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void saveDraft()}
+              disabled={busy}
+              className="arch w-full border py-3 font-medium disabled:opacity-60"
+              style={{ borderColor: 'var(--line-strong)', color: 'var(--ink)' }}
+            >
+              {t('production.saveDraft')}
+            </button>
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>
+              {t('production.draftHint')}
+            </p>
+          </>
         )}
       </div>
     </Sheet>
