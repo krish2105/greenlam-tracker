@@ -88,6 +88,7 @@ export function AppHeader({
         <nav aria-label={t('app.name')} className="flex flex-1 gap-1">
           {showFloor && <HeaderLink to="/floor">{t('nav.floor')}</HeaderLink>}
           {showBoard && <HeaderLink to="/board">{t('nav.board')}</HeaderLink>}
+          {showBoard && <HeaderLink to="/analyse">{t('adhoc.nav')}</HeaderLink>}
           {showImport && <HeaderLink to="/import">{t('imports.nav')}</HeaderLink>}
           {showImport && <HeaderLink to="/masters">{t('masters.nav')}</HeaderLink>}
           {showImport && <HeaderLink to="/setup">{t('setup.nav')}</HeaderLink>}

@@ -815,5 +815,31 @@
     "colBreakdowns": "Breakdowns",
     "colCriticalityUnmeasured": "Not measured",
     "colLastFailure": "Last failure"
+  },
+  "adhoc": {
+    "nav": "Analyse",
+    "title": "Analyse a spreadsheet",
+    "blurb": "Chart any Excel file against nothing but itself — a vendor quote, last year’s register, a one-off comparison.",
+    "choose": "Choose an Excel file",
+    "chooseAnother": "Choose a different file",
+    "reading": "Reading…",
+    "privacy": "The file stays in this browser. It is never uploaded, never stored, and is gone when you close the tab.",
+    "sheet": "Sheet",
+    "groupBy": "Group by",
+    "measure": "Measure",
+    "notNumeric": "not numbers",
+    "chartTitle": "{{measure}} by {{group}}",
+    "nothingToChart": "Nothing to add up in that column. Pick one that holds numbers.",
+    "firstRows": "First ten rows",
+    "rowsRead_one": "1 row read",
+    "rowsRead_other": "{{count}} rows read",
+    "errors": {
+      "too-large": "That file is over 25 MB. Trim it and try again.",
+      "not-a-zip": "That is not an Excel file. Save it as .xlsx and try again.",
+      "not-a-workbook": "That is not an Excel workbook. .xls and .csv need saving as .xlsx first.",
+      "bad-xml": "That file is damaged and cannot be read.",
+      "no-sheets": "That workbook has no sheets in it.",
+      "failed": "That file could not be read."
+    }
   }
 }

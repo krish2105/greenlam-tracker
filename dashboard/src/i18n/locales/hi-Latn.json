@@ -815,5 +815,31 @@
     "colBreakdowns": "Breakdown",
     "colCriticalityUnmeasured": "Maapa nahi gaya",
     "colLastFailure": "Pichhli kharabi"
+  },
+  "adhoc": {
+    "nav": "Vishleshan",
+    "title": "Kisi spreadsheet ka vishleshan",
+    "blurb": "Koi bhi Excel file yahan chart karein — vendor ka quotation, pichhle saal ka register, ya koi ek baar ki tulna.",
+    "choose": "Excel file chunein",
+    "chooseAnother": "Doosri file chunein",
+    "reading": "Padh rahe hain…",
+    "privacy": "File isi browser mein rehti hai. Na upload hoti hai, na kahin save, aur tab band karte hi chali jaati hai.",
+    "sheet": "Sheet",
+    "groupBy": "Kiske anusaar",
+    "measure": "Maap",
+    "notNumeric": "sankhya nahi",
+    "chartTitle": "{{group}} ke anusaar {{measure}}",
+    "nothingToChart": "Us column mein jodne layak kuch nahi. Koi sankhya wala column chunein.",
+    "firstRows": "Pehli das panktiyan",
+    "rowsRead_one": "1 pankti padhi",
+    "rowsRead_other": "{{count}} panktiyan padhin",
+    "errors": {
+      "too-large": "Yeh file 25 MB se badi hai. Chhoti karke dobara koshish karein.",
+      "not-a-zip": "Yeh Excel file nahi hai. Ise .xlsx mein save karke dobara koshish karein.",
+      "not-a-workbook": "Yeh Excel workbook nahi hai. .xls aur .csv ko pehle .xlsx mein save karna hoga.",
+      "bad-xml": "Yeh file kharab hai, padhi nahi ja sakti.",
+      "no-sheets": "Is workbook mein koi sheet nahi hai.",
+      "failed": "Yeh file padhi nahi ja saki."
+    }
   }
 }

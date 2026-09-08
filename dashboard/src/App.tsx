@@ -35,6 +35,12 @@ const BoardView = lazy(() =>
 const ImportView = lazy(() =>
   import('./components/imports/ImportView').then((m) => ({ default: m.ImportView })),
 );
+// Dashboard-only and lazy for a reason of its own: this one carries a ZIP
+// reader and an XML parser for files people bring with them, and the floor
+// never opens one.
+const AdHocView = lazy(() =>
+  import('./components/board/AdHocView').then((m) => ({ default: m.AdHocView })),
+);
 // Also dashboard-only, also lazy. The floor never edits a vocabulary.
 const AccessView = lazy(() =>
   import('./components/access/AccessView').then((m) => ({ default: m.AccessView })),
@@ -268,6 +274,22 @@ function SignedIn({
               <Suspense fallback={<Splash />}>
                 <BoardView canDrill />
               </Suspense>
+              )
+            }
+          />
+          {/* Charting a file somebody brought (V5 §11). Guarded by Dashboard,
+              NOT by editMasters like /import — this changes nothing, and
+              putting the two on one screen would be a misread button between
+              "look at my file" and "overwrite the plant's". */}
+          <Route
+            path="/analyse"
+            element={
+              showBoard ? (
+                <Suspense fallback={<Splash />}>
+                  <AdHocView />
+                </Suspense>
+              ) : (
+                <Navigate to={home} replace />
               )
             }
           />
