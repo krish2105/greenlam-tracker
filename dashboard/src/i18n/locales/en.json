@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "Greenlam Tracker",
-    "tagline": "Maintenance and production, one register"
+    "tagline": "Maintenance and production, one register",
+    "waking": "Waking the server — this can take up to a minute the first time each day. Nothing is wrong."
   },
   "nav": {
     "floor": "Floor",

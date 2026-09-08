@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "Greenlam Tracker",
-    "tagline": "Maintenance aur production, ek hi register"
+    "tagline": "Maintenance aur production, ek hi register",
+    "waking": "Server jaag raha hai — din mein pehli baar ek minute tak lag sakta hai. Kuch kharab nahi hai."
   },
   "nav": {
     "floor": "Floor",

@@ -116,16 +116,52 @@ export default function App() {
   );
 }
 
+/**
+ * The first thing anybody sees, including on the worst day.
+ *
+ * WHY IT STARTS TALKING AFTER FOUR SECONDS
+ *
+ * The API sleeps after fifteen minutes idle on the current host and takes
+ * around forty-five seconds to wake. A word that says "Loading…" for
+ * three-quarters of a minute does not read as slow — it reads as broken, and
+ * the person closes the tab and tells somebody the app does not work. That is
+ * the single most likely way this fails in front of a plant, and it is not a
+ * bug in anything: the app is fine and the server is asleep.
+ *
+ * Saying so costs nothing and changes the whole reading of the wait. It only
+ * appears after four seconds, because on a warm instance this screen is gone
+ * in a few hundred milliseconds and an explanation nobody needed would make a
+ * fast app look apologetic.
+ *
+ * The message is deliberately about the server rather than the network — a
+ * technician on the floor with one bar has every reason to blame their signal,
+ * and sending them to chase that is the wrong instruction.
+ */
 function Splash() {
   const { t } = useTranslation();
+  const [slow, setSlow] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSlow(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
     <div
-      className="flex min-h-dvh flex-col items-center justify-center gap-3"
+      className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center"
       role="status"
       aria-live="polite"
     >
       <ArchMark size={40} />
       <p style={{ color: 'var(--ink-muted)' }}>{t('masters.loading')}</p>
+      {slow && (
+        <p
+          className="max-w-xs"
+          style={{ color: 'var(--ink-muted)', fontSize: 'var(--text-sm)' }}
+        >
+          {t('app.waking')}
+        </p>
+      )}
     </div>
   );
 }
