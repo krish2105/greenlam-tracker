@@ -121,7 +121,7 @@
     "prevention": "Aage rokne ka upaay",
     "acknowledge": "Main dekh raha hoon",
     "noMaterial": "Koi material nahi chahiye",
-    "materialLater": "Parts aur cost darj karna aage ke phase mein aayega.",
+    "materialLater": "Abhi bata dein — phir intezaar ka samay aapki marammat mein nahi gina jayega.",
     "startRepair": "Repair shuru karein",
     "correctionPrompt": "Kis kaam se machine dobara chali?",
     "correctionPlaceholder": "Jaise, hydraulic seal kit badli",
@@ -154,7 +154,17 @@
     "editedBy": "Darj hone ke baad {{name}} ne sudhara.",
     "correct": "Galti sudharein",
     "correctHint": "Sirf likha hua badalta hai. Ticket band hi rahega aur machine theek hi mani jayegi.",
-    "overseeOnly": "Is par maintenance kaam karegi. Aap ise dobara khol sakte hain, ya kisi ko somp sakte hain."
+    "overseeOnly": "Is par maintenance kaam karegi. Aap ise dobara khol sakte hain, ya kisi ko somp sakte hain.",
+    "materialQuestion": "Koi part chahiye?",
+    "waitingForPart": "Part ka intezaar",
+    "stillBroken": "Koshish ki, ab bhi nahi chali",
+    "stillBrokenPlaceholder": "jaise: seal badli, phir bhi leak hai",
+    "markPending": "Ghadi rokein",
+    "onHoldMaterial": "Part ka intezaar hai. Marammat ki ghadi ruki hui hai.",
+    "onHoldPending": "Ab bhi nahi chal rahi. Marammat ki ghadi ruki hui hai.",
+    "partArrived": "Part aa gaya",
+    "backOnIt": "Phir se shuru",
+    "waited": "{{duration}} intezaar — yeh marammat ke samay mein nahi gina gaya"
   },
   "board": {
     "title": "Dashboard",
@@ -690,5 +700,21 @@
     "assigning": "…",
     "nobody": "Abhi kisi ke paas Maintenance pahunch nahi hai. Admin use Access screen se deta hai.",
     "failed": "sompa nahi ja saka. Dobara koshish karein."
+  },
+  "material": {
+    "title": "Part — {{machine}}",
+    "askBody": "Agar store se kuch chahiye to abhi bata dein. Intezaar ka samay aapki marammat mein nahi gina jayega.",
+    "yes": "Haan, part chahiye",
+    "no": "Nahi, sab mere paas hai",
+    "source": "Kahan se",
+    "store": "Store se",
+    "purchase": "Kharidna padega",
+    "what": "Kya chahiye",
+    "whatPlaceholder": "jaise: hydraulic seal kit",
+    "bin": "Bin / shelf (agar pata ho)",
+    "save": "Save karein",
+    "saving": "Save ho raha hai…",
+    "failed": "Save nahi ho saka. Dobara koshish karein.",
+    "thenHold": "Jab sach mein intezaar shuru ho, ticket par “Part ka intezaar” dabakar ghadi rok dein."
   }
 }

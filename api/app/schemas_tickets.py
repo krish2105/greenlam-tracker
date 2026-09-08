@@ -131,6 +131,19 @@ class TicketRead(BaseModel):
     last_edited_at: datetime | None
     last_edited_by_name: str | None
 
+    # --- The pending clock (V5 §5.3, §5.8) --------------------------------
+    #
+    # Minutes this repair spent waiting rather than being repaired, and which
+    # kind of wait is open right now (None when nobody is waiting).
+    #
+    # On the read because the technician has to SEE it. Solve Time subtracts
+    # this, and criticality is banded on the result — so a repair that looks
+    # like three hours on the wall and was twenty minutes of work only reads
+    # correctly if the waiting is visible next to it.
+    pending_minutes: float
+    hold_kind: str | None
+    material_needed: bool
+
     # Derived on read, never stored.
     escalation: EscalationRead
     flags: list[str]

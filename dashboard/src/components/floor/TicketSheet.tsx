@@ -21,6 +21,7 @@ import { formatDuration, scoreRootCause } from '@greenlam/core';
 
 import * as api from '../../lib/api';
 import { CorrectSheet } from './CorrectSheet';
+import { MaterialSheet } from './MaterialSheet';
 import { ReassignSheet } from './ReassignSheet';
 import { Sheet } from '../Sheet';
 
@@ -74,10 +75,44 @@ export function TicketSheet({
   const [rating, setRating] = useState(0);
   const [correcting, setCorrecting] = useState(false);
   const [reassigning, setReassigning] = useState(false);
+  const [askingMaterial, setAskingMaterial] = useState(false);
+  const [pendingReason, setPendingReason] = useState('');
 
   useEffect(() => {
     void api.getTicket(ticketId).then(setTicket).catch(() => setError(t('ticket.loadFailed')));
   }, [ticketId, t]);
+
+  /** Hold and resume are not events on the stage counter — they open and close
+   *  a pending window, and the ticket comes back with a new `status`. Reload
+   *  rather than guess: the sheet's whole action set changes underneath it. */
+  async function pause(kind: 'material' | 'correction_pending', reason?: string) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.holdTicket(ticketId, kind, reason);
+      setTicket(await api.getTicket(ticketId));
+      setPendingReason('');
+      onChanged();
+    } catch (err) {
+      setError(err instanceof api.ApiError ? err.message : t('ticket.actionFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function unpause() {
+    setBusy(true);
+    setError('');
+    try {
+      await api.resumeTicket(ticketId);
+      setTicket(await api.getTicket(ticketId));
+      onChanged();
+    } catch (err) {
+      setError(err instanceof api.ApiError ? err.message : t('ticket.actionFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function advance(event: api.TicketEventInput) {
     setBusy(true);
@@ -201,6 +236,15 @@ export function TicketSheet({
           </button>
         )}
 
+        {/* The number Solve Time subtracts. On screen because a technician
+            reading "2h 40m" beside a repair they remember as twenty minutes
+            should be able to see where the rest went. */}
+        {ticket.pending_minutes > 0 && (
+          <p style={{ color: 'var(--ink-muted)', fontSize: 'var(--text-sm)' }}>
+            {t('ticket.waited', { duration: formatDuration(ticket.pending_minutes) })}
+          </p>
+        )}
+
         <StageTrail stage={ticket.current_stage} />
 
         {ticket.immediate_correction && (
@@ -246,12 +290,15 @@ export function TicketSheet({
 
           {canWork && ticket.current_stage === 1 && (
             <div className="space-y-2">
+              {/* Asks, rather than assuming. This button used to send
+                  `material_source: 'none'` unconditionally — the only path
+                  through the step — so the plant could never record that a
+                  repair was waiting on a part, and every wait was counted as
+                  repair work. */}
               <Action
                 busy={busy}
-                label={t('ticket.noMaterial')}
-                onClick={() =>
-                  void advance({ type: 'MATERIAL_RECORDED', material_source: 'none' })
-                }
+                label={t('ticket.materialQuestion')}
+                onClick={() => setAskingMaterial(true)}
               />
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>
                 {t('ticket.materialLater')}
@@ -267,7 +314,7 @@ export function TicketSheet({
             />
           )}
 
-          {canWork && ticket.current_stage === 3 && (
+          {canWork && !ticket.hold_kind && ticket.current_stage === 3 && (
             <Field
               id="correction"
               label={t('ticket.correctionPrompt')}
@@ -287,6 +334,72 @@ export function TicketSheet({
                 />
               }
             />
+          )}
+
+          {/* On hold. Everything else is hidden — a ticket waiting for a part
+              has exactly one next move, and offering "it is running again"
+              beside it invites closing a repair that has not happened. */}
+          {canWork && ticket.hold_kind && (
+            <div className="space-y-2">
+              <p style={{ color: 'var(--amber)', fontSize: 'var(--text-sm)' }}>
+                {t(
+                  ticket.hold_kind === 'material'
+                    ? 'ticket.onHoldMaterial'
+                    : 'ticket.onHoldPending',
+                )}
+              </p>
+              <Action
+                busy={busy}
+                label={t(
+                  ticket.hold_kind === 'material'
+                    ? 'ticket.partArrived'
+                    : 'ticket.backOnIt',
+                )}
+                onClick={() => void unpause()}
+              />
+            </div>
+          )}
+
+          {/* Stopping the clock. Offered whenever somebody is working the
+              ticket and nothing is already on hold.
+
+              Both of these subtract from Solve Time, which is what criticality
+              is banded on. Without them a repair that waited three hours for a
+              bearing is measured as a three-hour repair — and on a press that
+              is the difference between Low and High. */}
+          {canWork && !ticket.hold_kind && ticket.current_stage === 3 && (
+            <div className="mt-3 space-y-2 border-t pt-3" style={{ borderColor: 'var(--line)' }}>
+              <button
+                type="button"
+                onClick={() => void pause('material')}
+                disabled={busy}
+                className="arch w-full border py-3 font-medium disabled:opacity-60"
+                style={{ borderColor: 'var(--line-strong)', color: 'var(--ink)' }}
+              >
+                {t('ticket.waitingForPart')}
+              </button>
+
+              {/* A typed reason, required by the server. A reopen-shaped claim
+                  — "I tried and it is still broken" — needs a sentence on it. */}
+              <Field
+                id="pending-reason"
+                label={t('ticket.stillBroken')}
+                value={pendingReason}
+                onChange={setPendingReason}
+                placeholder={t('ticket.stillBrokenPlaceholder')}
+                action={
+                  <button
+                    type="button"
+                    onClick={() => void pause('correction_pending', pendingReason)}
+                    disabled={busy || !pendingReason.trim()}
+                    className="arch w-full border py-3 font-medium disabled:opacity-60"
+                    style={{ borderColor: 'var(--line-strong)', color: 'var(--ink)' }}
+                  >
+                    {t('ticket.markPending')}
+                  </button>
+                }
+              />
+            </div>
           )}
 
           {canWork && ticket.current_stage === 4 && (
@@ -380,6 +493,18 @@ export function TicketSheet({
           )}
         </div>
       </div>
+
+      {askingMaterial && (
+        <MaterialSheet
+          ticket={ticket}
+          onClose={() => setAskingMaterial(false)}
+          onDone={() => {
+            setAskingMaterial(false);
+            void api.getTicket(ticketId).then(setTicket).catch(() => undefined);
+            onChanged();
+          }}
+        />
+      )}
 
       {reassigning && (
         <ReassignSheet

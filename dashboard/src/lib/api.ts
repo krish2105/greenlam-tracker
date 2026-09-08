@@ -295,6 +295,17 @@ export interface Ticket {
   /** Set once the record has been corrected (V5 §7). Null means never. */
   last_edited_at: string | null;
   last_edited_by_name: string | null;
+  /**
+   * Minutes this repair spent waiting rather than being repaired, and which
+   * kind of wait is open right now (null when nobody is waiting).
+   *
+   * Solve Time subtracts this and criticality is banded on the result, so a
+   * repair that looks like three hours on the wall and was twenty minutes of
+   * work only reads correctly if the waiting is visible next to it.
+   */
+  pending_minutes: number;
+  hold_kind: 'material' | 'correction_pending' | null;
+  material_needed: boolean;
   escalation: Escalation;
   flags: string[];
   repeat_count: number;
@@ -506,14 +517,16 @@ export function raiseTicket(input: RaiseTicketInput): Promise<Ticket> {
 
 export interface TicketEventInput {
   type: string;
+  /** MATERIAL_RECORDED: 'none' means the repair needs nothing from stores. */
+  material_source?: 'store' | 'purchase' | 'none';
+  material_name?: string;
+  material_bin?: string;
   immediate_correction?: string;
   why_1?: string;
   why_2?: string;
   why_3?: string;
   preventive_action?: string;
   rating?: number;
-  material_source?: string;
-  material_name?: string;
 }
 
 export function advanceTicket(id: string, event: TicketEventInput): Promise<Ticket> {
@@ -1308,5 +1321,40 @@ export function handoffTicket(ticketId: string, toUserId: number): Promise<unkno
   return request(`/tickets/${ticketId}/handoff`, {
     method: 'POST',
     body: JSON.stringify({ to_user_id: toUserId, submission_id: crypto.randomUUID() }),
+  });
+}
+
+
+// ---------------------------------------------------------------------------
+// The pending clock — waiting for a part, or still broken (V5 §5.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Stop the repair clock.
+ *
+ * `material` is waiting for a part. `correction_pending` is "I tried and it is
+ * still broken", which V5 §5.4 requires a typed reason for — a claim that a fix
+ * did not hold needs a sentence attached to it.
+ *
+ * This is what makes Solve Time mean anything. Without it every wait counts as
+ * repair work, and a twenty-minute fix that waited three hours for a bearing is
+ * banded as a three-hour repair.
+ */
+export function holdTicket(
+  ticketId: string,
+  kind: 'material' | 'correction_pending',
+  reason?: string,
+): Promise<unknown> {
+  return request(`/tickets/${ticketId}/hold`, {
+    method: 'POST',
+    body: JSON.stringify({ kind, reason, submission_id: crypto.randomUUID() }),
+  });
+}
+
+/** Start it again. Closes whichever window is open. */
+export function resumeTicket(ticketId: string): Promise<unknown> {
+  return request(`/tickets/${ticketId}/resume`, {
+    method: 'POST',
+    body: JSON.stringify({ submission_id: crypto.randomUUID() }),
   });
 }

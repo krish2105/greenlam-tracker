@@ -33,6 +33,7 @@ from ..models import (
     Ticket,
     TicketEvent,
     TicketMaterial,
+    TicketPendingWindow,
     User,
     utcnow,
 )
@@ -113,6 +114,34 @@ def _machine_index(session: SessionDep, principal: Principal):
     return machines, sections
 
 
+def _pending_read(session, ticket_ids: list) -> dict:
+    """Minutes waited, and any open wait, for each ticket.
+
+    Batched deliberately. The ticket list renders up to five hundred rows and a
+    per-row query for the pending clock would be five hundred round trips to
+    show a number that is zero on most of them.
+    """
+    if not ticket_ids:
+        return {}
+    rows = session.exec(
+        select(TicketPendingWindow).where(TicketPendingWindow.ticket_id.in_(ticket_ids))
+    ).all()
+    out: dict = {}
+    for w in rows:
+        entry = out.setdefault(w.ticket_id, {"minutes": 0.0, "kind": None})
+        if w.ended_at is None:
+            # An open window has no length yet — the wait is still happening,
+            # and growing the subtraction every second would make Solve Time
+            # move on a screen nobody is touching.
+            entry["kind"] = w.kind
+        else:
+            entry["minutes"] += w.minutes or 0
+    return {
+        tid: {"pending_minutes": round(v["minutes"], 1), "hold_kind": v["kind"]}
+        for tid, v in out.items()
+    }
+
+
 def _to_read(
     ticket: Ticket,
     machine: Machine,
@@ -121,6 +150,8 @@ def _to_read(
     repeat: int,
     now: datetime,
     editor_name: str | None = None,
+    pending_minutes: float = 0.0,
+    hold_kind: str | None = None,
 ) -> TicketRead:
     # Ranked by how much the MACHINE matters, not by a priority somebody
     # picked at raise time — V5 §5.8 removed that judgement call, and the
@@ -182,6 +213,9 @@ def _to_read(
         rating=ticket.rating,
         last_edited_at=ticket.last_edited_at,
         last_edited_by_name=editor_name,
+        pending_minutes=pending_minutes,
+        hold_kind=hold_kind,
+        material_needed=ticket.material_at is not None,
         escalation=EscalationRead(
             level=esc.level,
             waiting_minutes=round(esc.waiting_minutes, 1),
@@ -331,6 +365,7 @@ def list_tickets(
     machines, sections = _machine_index(session, principal)
     repeats = _repeat_counts(session, principal)
     names = {u.id: u.name for u in session.exec(scope(User, principal)).all()}
+    pending = _pending_read(session, [t.id for t in tickets])
     now = utcnow()
 
     return [
@@ -342,6 +377,7 @@ def list_tickets(
             repeats.get((t.machine_id, t.category_id), 1),
             now,
             names.get(t.last_edited_by) if t.last_edited_by else None,
+            **pending.get(t.id, {}),
         )
         for t in tickets
         if t.machine_id in machines and t.section_id in sections
@@ -837,6 +873,7 @@ def get_ticket(ticket_id: UUID, principal: Operational, session: SessionDep) -> 
         (e.name if (e := session.get(User, ticket.last_edited_by)) else None)
         if ticket.last_edited_by
         else None,
+        **_pending_read(session, [ticket.id]).get(ticket.id, {}),
     )
 
 

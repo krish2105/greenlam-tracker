@@ -121,7 +121,7 @@
     "prevention": "Preventive action",
     "acknowledge": "I am on it",
     "noMaterial": "No material needed",
-    "materialLater": "Recording parts and cost comes in a later phase.",
+    "materialLater": "Say so now and the waiting will not count against your repair time.",
     "startRepair": "Start repair",
     "correctionPrompt": "What got it running again?",
     "correctionPlaceholder": "e.g. Replaced the hydraulic seal kit",
@@ -154,7 +154,17 @@
     "editedBy": "Amended by {{name}} after it was logged.",
     "correct": "Correct a mistake",
     "correctHint": "Changes what a field says. The ticket stays closed and the machine stays fixed.",
-    "overseeOnly": "Maintenance works this one. You can reopen it, or give it to someone."
+    "overseeOnly": "Maintenance works this one. You can reopen it, or give it to someone.",
+    "materialQuestion": "Does it need a part?",
+    "waitingForPart": "Waiting for a part",
+    "stillBroken": "Tried it, still not running",
+    "stillBrokenPlaceholder": "e.g. Replaced the seal, still leaking",
+    "markPending": "Stop the clock",
+    "onHoldMaterial": "Waiting for a part. The repair clock is stopped.",
+    "onHoldPending": "Still not running. The repair clock is stopped.",
+    "partArrived": "The part is here",
+    "backOnIt": "Back on it",
+    "waited": "Waited {{duration}} — not counted as repair time"
   },
   "board": {
     "title": "Dashboard",
@@ -690,5 +700,21 @@
     "assigning": "…",
     "nobody": "Nobody has Maintenance access yet. An admin grants it on the Access screen.",
     "failed": "Could not hand it over. Try again."
+  },
+  "material": {
+    "title": "Parts — {{machine}}",
+    "askBody": "If it needs something from stores, say so now. The time you spend waiting is not counted against your repair.",
+    "yes": "Yes, it needs a part",
+    "no": "No, I have everything",
+    "source": "Where from",
+    "store": "From stores",
+    "purchase": "Has to be bought",
+    "what": "What is needed",
+    "whatPlaceholder": "e.g. Hydraulic seal kit",
+    "bin": "Bin / shelf (if you know it)",
+    "save": "Save",
+    "saving": "Saving…",
+    "failed": "Could not save that. Try again.",
+    "thenHold": "Once you are actually waiting, tap “Waiting for a part” on the ticket to stop the clock."
   }
 }
