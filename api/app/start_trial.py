@@ -146,6 +146,38 @@ def mark_started(session: Session, run_id: str) -> None:
     session.commit()
 
 
+def can_recreate_an_admin() -> str | None:
+    """Why the wipe must not run, or None if it is safe.
+
+    THE FAILURE THIS PREVENTS
+
+    `wipe()` deletes every account, and the boot chain relies on `bootstrap`
+    running afterwards to put the first admin back. Bootstrap only does that if
+    BOOTSTRAP_ADMIN_PIN is set and valid. If it is not — cleared after the last
+    trial start, as the README tells people to do — the sequence completes
+    successfully and leaves a plant with its data gone and nobody able to sign
+    in. Both halves report success; the system is simply shut.
+
+    So the condition is checked BEFORE anything is deleted rather than
+    discovered after. Refusing to clear is recoverable in ten seconds. Clearing
+    and then finding out is not recoverable at all.
+    """
+    from .security import validate_pin_format
+
+    pin = os.environ.get("BOOTSTRAP_ADMIN_PIN", "").strip()
+    if not pin:
+        return (
+            "BOOTSTRAP_ADMIN_PIN is not set, so no admin could be created after "
+            "the clear and nobody would be able to sign in. Set it, then redeploy."
+        )
+    if not validate_pin_format(pin):
+        return (
+            "BOOTSTRAP_ADMIN_PIN is not a valid PIN (six digits, not a repeat or "
+            "a run), so bootstrap would refuse to create an admin after the clear."
+        )
+    return None
+
+
 def wipe(session: Session) -> dict[str, int]:
     counts: dict[str, int] = {}
     for model in TRANSACTIONAL:
@@ -238,6 +270,12 @@ def main() -> None:  # pragma: no cover - an operator command
                 return
             if already_started(session, run_id):
                 print(f"Trial '{run_id}' already started — leaving the data alone.")
+                return
+            # Checked before the delete, not after. See can_recreate_an_admin.
+            refusal = can_recreate_an_admin()
+            if refusal is not None:
+                print(f"Refusing to clear for trial '{run_id}': {refusal}")
+                print("The data has NOT been touched.")
                 return
             counts = wipe(session)
             mark_started(session, run_id)
