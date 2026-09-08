@@ -54,31 +54,24 @@ export function FilterBar({
   module,
   filters,
   onChange,
+  sections,
+  machines,
+  shifts,
 }: {
   module: BoardModule;
   filters: api.BoardFilters;
   onChange: (next: api.BoardFilters) => void;
+  /** Fetched once by the board and shared with the export, which needs the
+      same three lists to name what a filter selected rather than number it. */
+  sections: api.Section[];
+  machines: api.Machine[];
+  shifts: api.Shift[];
 }) {
   const { t, i18n } = useTranslation();
 
-  const [sections, setSections] = useState<api.Section[]>([]);
-  const [machines, setMachines] = useState<api.Machine[]>([]);
-  const [shifts, setShifts] = useState<api.Shift[]>([]);
   // Typing a load number should not fire a request per keystroke against a
   // free-tier instance. Held locally, applied on submit.
   const [loadDraft, setLoadDraft] = useState(filters.load_no ?? '');
-
-  useEffect(() => {
-    void Promise.all([
-      api.listSections().catch(() => []),
-      api.listMachines().catch(() => []),
-      api.listShifts().catch(() => []),
-    ]).then(([s, m, sh]) => {
-      setSections(s);
-      setMachines(m);
-      setShifts(sh);
-    });
-  }, []);
 
   useEffect(() => {
     setLoadDraft(filters.load_no ?? '');

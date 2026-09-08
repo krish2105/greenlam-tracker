@@ -269,7 +269,7 @@ def main() -> None:  # pragma: no cover - an operator command
                 name=args.admin_name,
                 pin=args.admin_pin,
             )
-            print(f"\nFirst admin: {user.employee_id} ({user.name}) — admin, dashboard")
+            print(f"\nFirst admin: {user.employee_id} ({user.name}) — all {len(AREAS)} areas")
             print("Everybody else signs up in the app and is approved by them.")
 
 

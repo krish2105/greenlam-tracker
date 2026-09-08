@@ -53,6 +53,7 @@ import { WorkbookDownload } from './WorkbookDownload';
 import { TicketSheet } from '../floor/TicketSheet';
 import { FocusStrip, type BoardFocus } from './FocusStrip';
 import { FilterBar, type BoardModule } from './FilterBar';
+import { ExportView } from './ExportView';
 
 const PERIODS = [30, 90, 180] as const;
 
@@ -64,6 +65,13 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
   // us output. The other two are for the people who own one half.
   const [module, setModule] = useState<BoardModule>('combined');
   const [filters, setFilters] = useState<api.BoardFilters>({});
+  // The three master lists the filter bar offers and the export names. Fetched
+  // once here rather than twice, in two components, from the same endpoints.
+  const [masters, setMasters] = useState<{
+    sections: api.Section[];
+    machines: api.Machine[];
+    shifts: api.Shift[];
+  }>({ sections: [], machines: [], shifts: [] });
   const [feed, setFeed] = useState<api.ExceptionFeed | null>(null);
   const [stats, setStats] = useState<api.Analytics | null>(null);
   const [summary, setSummary] = useState<api.BoardSummary | null>(null);
@@ -106,6 +114,14 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void Promise.all([
+      api.listSections().catch(() => []),
+      api.listMachines().catch(() => []),
+      api.listShifts().catch(() => []),
+    ]).then(([sections, machines, shifts]) => setMasters({ sections, machines, shifts }));
+  }, []);
 
   const alerting = useMemo(
     () => new Set((feed?.items ?? []).map((i) => i.machine_code)),
@@ -186,7 +202,26 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
         <PeriodPicker days={days} onChange={setDays} />
       </div>
 
-      <FilterBar module={module} filters={filters} onChange={setFilters} />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <FilterBar
+          module={module}
+          filters={filters}
+          onChange={setFilters}
+          sections={masters.sections}
+          machines={masters.machines}
+          shifts={masters.shifts}
+        />
+        <ExportView
+          module={module}
+          days={days}
+          filters={filters}
+          stats={stats}
+          prod={prod}
+          sections={masters.sections}
+          machines={masters.machines}
+          shifts={masters.shifts}
+        />
+      </div>
 
       {/* ---- ROW 1: headline ---- */}
       {showMaintenance && (

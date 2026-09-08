@@ -684,3 +684,69 @@ table {
   );
   opacity: 0.9;
 }
+
+/* ---------------------------------------------------------------------------
+   Print (V5 §11.2 — "exported to PDF")
+   ---------------------------------------------------------------------------
+   The browser's own print dialog offers Save as PDF on every platform this
+   runs on, so PDF export is a stylesheet rather than a bundled library. That
+   also means the PDF contains the REAL charts — the same SVG on screen, at
+   print resolution — instead of a second drawing of them that can disagree.
+
+   What has to change for paper:
+
+   The page is designed for a lit screen in a bright press hall: a dark ground
+   in dark mode, generous colour. Printed, that is either a black rectangle or
+   an empty one. So print always uses the light palette, whatever the reader
+   was looking at.
+
+   Navigation, buttons and filters are interactive things. On paper they are
+   ink that promises something the page cannot do.
+
+   The filter bar STAYS. A printed report with no statement of what it covers
+   is the same danger as a workbook with no summary sheet — it gets read as
+   the whole plant. It just loses its controls and keeps its text.
+   --------------------------------------------------------------------------- */
+@media print {
+  :root,
+  :root[data-theme='dark'] {
+    color-scheme: light;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  .no-print,
+  nav,
+  header nav,
+  .board-surface .aurora {
+    display: none !important;
+  }
+
+  /* Charts and cards must not be split across a page break mid-figure. */
+  figure,
+  section,
+  .arch {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Lift and tilt are screen affordances. On paper a shadow is grey mud. */
+  .lift,
+  .arch {
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  /* Everything the reader can see should be on the page, including the parts
+     a screen scrolls. */
+  * {
+    overflow: visible !important;
+  }
+
+  @page {
+    margin: 14mm;
+  }
+}

@@ -12,3 +12,4 @@ export * from './roles';
 export * from './sync';
 export * from './theme';
 export * from './tickets';
+export * from './xlsx';

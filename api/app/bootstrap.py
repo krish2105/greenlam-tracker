@@ -85,7 +85,7 @@ def run(session: Session) -> str:
         session.add(UserAccessArea(user_id=user.id, area=area))
     session.commit()
 
-    return f"Created the first admin: {employee_id} ({name}) — admin, dashboard."
+    return f"Created the first admin: {employee_id} ({name}) — all {len(AREAS)} areas."
 
 
 def main() -> None:  # pragma: no cover - a deploy step
