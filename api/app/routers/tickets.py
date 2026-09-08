@@ -13,6 +13,7 @@ from collections import defaultdict
 from dataclasses import asdict
 from datetime import UTC, date, datetime, timedelta
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func
@@ -28,6 +29,7 @@ from ..deps import (
 from ..models import (
     Category,
     Machine,
+    Plant,
     Section,
     Shift,
     Ticket,
@@ -385,13 +387,33 @@ def list_tickets(
 
 
 @router.get("/analytics", response_model=Analytics, summary="KPIs and chart series")
-def board_analytics(principal: PrincipalDep, session: SessionDep, days: int = _DAYS_Q) -> Analytics:
+def board_analytics(
+    principal: PrincipalDep,
+    session: SessionDep,
+    days: int = _DAYS_Q,
+    section_id: int | None = Query(None, description="One machine type — all its units"),
+    machine_id: int | None = Query(None, description="One machine"),
+    shift_id: int | None = Query(None),
+    hour_from: int | None = Query(None, ge=0, le=23),
+    hour_to: int | None = Query(None, ge=0, le=23),
+) -> Analytics:
     """Everything the board draws, in one response.
 
     Readable by every tier, corporate included. The payload is aggregates only
     — no ticket id, no description, no name — so there is nothing here to
     withhold, and a CXO seeing real numbers matters more than a purity rule
     that would show them zeroes.
+
+    FILTERS COMBINE FREELY (V5 §11.1)
+
+    Rather than a fixed report per question — day-wise, one machine, all
+    presses, this shift — the same aggregation runs over whatever subset the
+    filters describe. That is what gives "every permutation" without building
+    each one by hand.
+
+    The hour window is compared in the PLANT's local time, not UTC. A night
+    shift crossing midnight is exactly the comparison somebody reaches for
+    here, and doing it in UTC would silently shift it by five and a half hours.
     """
     now = utcnow()
     start, previous_start, _ = analytics.period_bounds(now, days)
@@ -400,7 +422,30 @@ def board_analytics(principal: PrincipalDep, session: SessionDep, days: int = _D
     sections = {s.id: s for s in session.exec(scope(Section, principal)).all()}
     categories = {c.id: c.name for c in session.exec(scope(Category, principal)).all()}
 
-    rows = session.exec(scope(Ticket, principal).where(Ticket.raised_at >= previous_start)).all()
+    stmt = scope(Ticket, principal).where(Ticket.raised_at >= previous_start)
+    if section_id is not None:
+        stmt = stmt.where(Ticket.section_id == section_id)
+    if machine_id is not None:
+        stmt = stmt.where(Ticket.machine_id == machine_id)
+    if shift_id is not None:
+        stmt = stmt.where(Ticket.shift_id == shift_id)
+    rows = session.exec(stmt).all()
+
+    if hour_from is not None and hour_to is not None:
+        plant = session.get(Plant, principal.home_plant_id)
+        tz = ZoneInfo(plant.timezone) if plant and plant.timezone else UTC
+
+        def in_window(t: Ticket) -> bool:
+            hour = t.raised_at.astimezone(tz).hour
+            # A window that wraps midnight — 22 to 06 — is the night shift, and
+            # it is the comparison this filter mostly exists for.
+            return (
+                hour_from <= hour <= hour_to
+                if hour_from <= hour_to
+                else hour >= hour_from or hour <= hour_to
+            )
+
+        rows = [t for t in rows if in_window(t)]
 
     def to_facts(t: Ticket) -> analytics.TicketFacts | None:
         machine = machines.get(t.machine_id)

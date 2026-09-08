@@ -225,7 +225,11 @@
     "criticalityMedium": "Madhyam",
     "criticalityHigh": "Zyada — waqt laga",
     "criticalityUnmeasured_one": "1 aur poori hui, par shuru hone ka samay darj nahi",
-    "criticalityUnmeasured_other": "{{count}} aur poori hui, par shuru hone ka samay darj nahi"
+    "criticalityUnmeasured_other": "{{count}} aur poori hui, par shuru hone ka samay darj nahi",
+    "viewLabel": "Dashboard drishya",
+    "viewCombined": "Sanyukt",
+    "viewMaintenance": "Maintenance",
+    "viewProduction": "Utpadan"
   },
   "masters": {
     "title": "Machine master",
@@ -402,7 +406,20 @@
     "loadNo": "Load no.",
     "loadNoOptional": "Load no. (agar pata ho)",
     "loadNoPlaceholder": "Load plan se",
-    "loadNoHint": "SAP load plan par likha number. Isi se yeh sheet apne load tak wapas judti hain."
+    "loadNoHint": "SAP load plan par likha number. Isi se yeh sheet apne load tak wapas judti hain.",
+    "outputTrend": "Roz ka utpadan",
+    "outputTrendEmpty": "Is avadhi mein koi utpadan darj nahi hua.",
+    "outputTrendSummary": "{{days}} dinon mein {{total}} sheet. Sabse zyada reject {{worst}} ko, {{percent}}%.",
+    "outputTrendPoint": "{{date}}: {{produced}} banin, {{percent}}% reject",
+    "outputTrendNote": "Bar mein bani hui sheet, upar reject. Line reject dar hai.",
+    "rejectPercent": "Reject dar",
+    "bySection": "Section ke anusaar",
+    "sheetsIn": "Pichhle {{days}} dinon ki sheet",
+    "rejectedCount_one": "1 sheet reject",
+    "rejectedCount_other": "{{count}} sheet reject",
+    "vsTarget": "Lakshya ke muqable",
+    "targetOf": "Lakshya {{target}}",
+    "noTarget": "Koi lakshya darj nahi"
   },
   "plantMap": {
     "title": "Plant, samay ke hisaab se",
@@ -737,5 +754,24 @@
     "saving": "Save ho rahi hai…",
     "failed": "Photo save nahi hui. Dobara koshish karein.",
     "partPhotoNeeded": "Marammat dobara shuru karne se pehle part ki photo zaroori hai."
+  },
+  "filters": {
+    "title": "Filter",
+    "machineType": "Machine ka prakar",
+    "allTypes": "Sabhi prakar",
+    "machine": "Machine",
+    "allMachines": "Sabhi machine",
+    "shift": "Shift",
+    "allShifts": "Sabhi shift",
+    "timeOfDay": "Din ka samay",
+    "timeOfDayEnd": "Samay seema ka ant",
+    "anyTime": "Koi bhi samay",
+    "loadNo": "Load No.",
+    "loadNoPlaceholder": "jaise L-4471",
+    "apply": "Lagu karein",
+    "clear_one": "1 filter hataayein",
+    "clear_other": "{{count}} filter hataayein",
+    "narrowed": "Neeche ke sabhi aankde sirf chune hue hisse ke hain.",
+    "notNarrowed": "Yeh panel poore plant ka hai — upar ke filter is par lagu nahi hote."
   }
 }

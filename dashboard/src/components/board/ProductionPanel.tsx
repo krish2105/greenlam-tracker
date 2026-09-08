@@ -14,7 +14,8 @@
 import { useTranslation } from 'react-i18next';
 
 import type { ProductionAnalytics, SegmentRow } from '../../lib/api';
-import { useRejectReasonName } from '../../lib/masterNames';
+import { useRejectReasonName, useSectionName } from '../../lib/masterNames';
+import { OutputTrend } from '../charts/OutputTrend';
 import {
   CLAY_COLOURS,
   ChartFrame,
@@ -28,7 +29,18 @@ import {
   useChartWidth,
 } from '../charts/primitives';
 
-export function ProductionPanel({ data }: { data: ProductionAnalytics }) {
+export function ProductionPanel({
+  data,
+  showCorrelation = true,
+}: {
+  data: ProductionAnalytics;
+  /**
+   * The downtime-against-scrap finding belongs to the Combined dashboard
+   * (V5 §11, view 3). On the HPL Production view it is answering a maintenance
+   * question nobody asked, using a machine list the filters may have excluded.
+   */
+  showCorrelation?: boolean;
+}) {
   const { t } = useTranslation();
 
   return (
@@ -48,7 +60,7 @@ export function ProductionPanel({ data }: { data: ProductionAnalytics }) {
       </h2>
 
       {/* The finding that predicts, not reports. */}
-      {data.breakdown_correlation.length > 0 && (
+      {showCorrelation && data.breakdown_correlation.length > 0 && (
         <div
           className="arch lift border px-4 py-3.5"
           style={{
@@ -79,12 +91,19 @@ export function ProductionPanel({ data }: { data: ProductionAnalytics }) {
         </div>
       )}
 
+      {/* Volume first, then why. V5 §11 leads the production view with output
+          — the Pareto explains a number the reader has not been shown yet. */}
+      <OutputTrend data={data.daily} />
+
       <RejectPareto data={data} />
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
         <SegmentTable title={t('production.byShift')} rows={data.by_shift} />
         <SegmentTable title={t('production.byTexture')} rows={data.by_texture} />
         <SegmentTable title={t('production.byMachine')} rows={data.by_machine.slice(0, 5)} />
+        {/* §11 asks for rejection rates by machine AND by section. The section
+            view is the one that survives a machine being renamed. */}
+        <SegmentTable title={t('production.bySection')} rows={data.by_section} localiseSection />
       </div>
     </section>
   );
@@ -347,8 +366,18 @@ function RejectPareto({ data }: { data: ProductionAnalytics }) {
  * worst is the finding, so the bar is drawn relative to the worst row rather
  * than to zero — otherwise a 3.0% and a 4.0% look identical.
  */
-function SegmentTable({ title, rows }: { title: string; rows: SegmentRow[] }) {
+function SegmentTable({
+  title,
+  rows,
+  localiseSection = false,
+}: {
+  title: string;
+  rows: SegmentRow[];
+  /** Section labels arrive as English strings and need the master lookup. */
+  localiseSection?: boolean;
+}) {
   const { t } = useTranslation();
+  const sectionName = useSectionName();
   if (rows.length === 0) return null;
   const max = Math.max(...rows.map((r) => r.reject_percent), 0.1);
 
@@ -364,7 +393,9 @@ function SegmentTable({ title, rows }: { title: string; rows: SegmentRow[] }) {
         {rows.map((row, i) => (
           <li key={row.label}>
             <div className="flex items-baseline justify-between gap-2">
-              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)' }}>{row.label}</span>
+              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)' }}>
+                {localiseSection ? sectionName(row.label) : row.label}
+              </span>
               <span
                 className="tabular"
                 style={{

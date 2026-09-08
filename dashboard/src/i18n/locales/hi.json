@@ -225,7 +225,11 @@
     "criticalityMedium": "मध्यम",
     "criticalityHigh": "ज़्यादा — वक़्त लगा",
     "criticalityUnmeasured_one": "1 और पूरी हुई, पर शुरू होने का समय दर्ज नहीं",
-    "criticalityUnmeasured_other": "{{count}} और पूरी हुईं, पर शुरू होने का समय दर्ज नहीं"
+    "criticalityUnmeasured_other": "{{count}} और पूरी हुईं, पर शुरू होने का समय दर्ज नहीं",
+    "viewLabel": "डैशबोर्ड दृश्य",
+    "viewCombined": "संयुक्त",
+    "viewMaintenance": "मेंटेनेंस",
+    "viewProduction": "उत्पादन"
   },
   "masters": {
     "title": "मशीन मास्टर",
@@ -402,7 +406,20 @@
     "loadNo": "लोड नं.",
     "loadNoOptional": "लोड नं. (अगर पता हो)",
     "loadNoPlaceholder": "लोड प्लान से",
-    "loadNoHint": "SAP लोड प्लान पर लिखा नंबर। इसी से ये शीट अपने लोड तक वापस जुड़ती हैं।"
+    "loadNoHint": "SAP लोड प्लान पर लिखा नंबर। इसी से ये शीट अपने लोड तक वापस जुड़ती हैं।",
+    "outputTrend": "रोज़ का उत्पादन",
+    "outputTrendEmpty": "इस अवधि में कोई उत्पादन दर्ज नहीं हुआ।",
+    "outputTrendSummary": "{{days}} दिनों में {{total}} शीट। सबसे ज़्यादा रिजेक्ट {{worst}} को, {{percent}}%।",
+    "outputTrendPoint": "{{date}}: {{produced}} बनीं, {{percent}}% रिजेक्ट",
+    "outputTrendNote": "बार में बनी हुई शीट, ऊपर रिजेक्ट। लाइन रिजेक्ट दर है।",
+    "rejectPercent": "रिजेक्ट दर",
+    "bySection": "सेक्शन के अनुसार",
+    "sheetsIn": "पिछले {{days}} दिनों की शीट",
+    "rejectedCount_one": "1 शीट रिजेक्ट",
+    "rejectedCount_other": "{{count}} शीट रिजेक्ट",
+    "vsTarget": "लक्ष्य के मुक़ाबले",
+    "targetOf": "लक्ष्य {{target}}",
+    "noTarget": "कोई लक्ष्य दर्ज नहीं"
   },
   "plantMap": {
     "title": "प्लांट, समय के हिसाब से",
@@ -737,5 +754,24 @@
     "saving": "सेव हो रही है…",
     "failed": "फ़ोटो सेव नहीं हुई। दोबारा कोशिश करें।",
     "partPhotoNeeded": "मरम्मत दोबारा शुरू करने से पहले पार्ट की फ़ोटो ज़रूरी है।"
+  },
+  "filters": {
+    "title": "फ़िल्टर",
+    "machineType": "मशीन का प्रकार",
+    "allTypes": "सभी प्रकार",
+    "machine": "मशीन",
+    "allMachines": "सभी मशीनें",
+    "shift": "शिफ़्ट",
+    "allShifts": "सभी शिफ़्ट",
+    "timeOfDay": "दिन का समय",
+    "timeOfDayEnd": "समय सीमा का अंत",
+    "anyTime": "कोई भी समय",
+    "loadNo": "लोड नं.",
+    "loadNoPlaceholder": "जैसे L-4471",
+    "apply": "लागू करें",
+    "clear_one": "1 फ़िल्टर हटाएँ",
+    "clear_other": "{{count}} फ़िल्टर हटाएँ",
+    "narrowed": "नीचे के सभी आँकड़े सिर्फ़ चुने हुए हिस्से के हैं।",
+    "notNarrowed": "यह पैनल पूरे प्लांट का है — ऊपर के फ़िल्टर इस पर लागू नहीं होते।"
   }
 }

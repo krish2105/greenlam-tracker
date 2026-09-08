@@ -18,6 +18,18 @@
  * the API returns — a corporate role gets aggregates and a redacted feed with
  * nothing to click. That decision lives on the server; this file only lays out
  * what arrived.
+ *
+ * THREE VIEWS, ONE PAGE (V5 §11)
+ *
+ * Maintenance, HPL Production and Combined. They are not three routes and not
+ * three components: the spec's own §11.1 lists "Module" as one filter among
+ * seven, sitting on the same shared set as machine, shift and time-of-day. So
+ * the switcher is a filter that happens to be rendered as a switcher, and
+ * every panel below declares which views it belongs to.
+ *
+ * The alternative — three files — is the thing §11.1 exists to prevent. Each
+ * one would drift, and the maintenance MTTR on two of them would stop agreeing
+ * within a month.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -40,12 +52,18 @@ import { ProductionPanel } from './ProductionPanel';
 import { WorkbookDownload } from './WorkbookDownload';
 import { TicketSheet } from '../floor/TicketSheet';
 import { FocusStrip, type BoardFocus } from './FocusStrip';
+import { FilterBar, type BoardModule } from './FilterBar';
 
 const PERIODS = [30, 90, 180] as const;
 
 export function BoardView({ canDrill }: { canDrill: boolean }) {
   const { t } = useTranslation();
   const [days, setDays] = useState<number>(90);
+  // Combined is the default because it is the only view that answers the
+  // question the plant head actually opens this with — did the breakdowns cost
+  // us output. The other two are for the people who own one half.
+  const [module, setModule] = useState<BoardModule>('combined');
+  const [filters, setFilters] = useState<api.BoardFilters>({});
   const [feed, setFeed] = useState<api.ExceptionFeed | null>(null);
   const [stats, setStats] = useState<api.Analytics | null>(null);
   const [summary, setSummary] = useState<api.BoardSummary | null>(null);
@@ -68,10 +86,10 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
     try {
       const [f, a, s, q, p] = await Promise.all([
         api.exceptions(),
-        api.analytics(days),
+        api.analytics(days, filters),
         api.boardSummary(),
         api.rootCauseQuality(days).catch(() => null),
-        api.productionAnalytics(days).catch(() => null),
+        api.productionAnalytics(days, filters).catch(() => null),
       ]);
       setFeed(f);
       setStats(a);
@@ -83,7 +101,7 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
     } finally {
       setLoading(false);
     }
-  }, [days]);
+  }, [days, filters]);
 
   useEffect(() => {
     void load();
@@ -121,6 +139,13 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
   const basisNote =
     k?.availability_basis === 'scheduled' ? 'board.scheduledBasis' : 'board.calendarBasis';
 
+  const showMaintenance = module !== 'production';
+  const showProduction = module !== 'maintenance';
+  // Three endpoints on this page take no filters: the live exception queue, the
+  // section rollup and the root-cause sample. Rather than leave them silently
+  // disagreeing with the filtered numbers beside them, they say so.
+  const filtersActive = Object.values(filters).some((v) => v !== null && v !== undefined && v !== '');
+
   return (
     <div className="board-surface space-y-7 pb-12">
       <Aurora />
@@ -156,9 +181,15 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
         </p>
       </header>
 
-      <PeriodPicker days={days} onChange={setDays} />
+      <div className="flex flex-wrap items-center gap-3">
+        <ModuleSwitcher module={module} onChange={setModule} />
+        <PeriodPicker days={days} onChange={setDays} />
+      </div>
+
+      <FilterBar module={module} filters={filters} onChange={setFilters} />
 
       {/* ---- ROW 1: headline ---- */}
+      {showMaintenance && (
       <section aria-label={t('board.headline')}>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
           <Tile
@@ -259,8 +290,65 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
           )}
         </p>
       </section>
+      )}
+
+      {/* Output, on its own terms. V5 §11 view 2 opens on volume, not on the
+          maintenance KPIs — a production manager reading this does not start
+          from MTTR. Only shown when the maintenance tiles are not, so the two
+          headlines never stack. */}
+      {showProduction && !showMaintenance && (
+        <section aria-label={t('production.title')}>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <Tile
+              label={t('production.produced')}
+              value={prod ? prod.total_produced.toLocaleString('en-IN') : '—'}
+              sub={t('production.sheetsIn', { days })}
+              hero
+            />
+            <Tile
+              label={t('production.rejectPercent')}
+              value={prod ? `${prod.reject_percent}%` : '—'}
+              sub={
+                prod ? t('production.rejectedCount', { count: prod.total_rejected }) : undefined
+              }
+              tone={
+                prod == null
+                  ? 'neutral'
+                  : prod.reject_percent <= 2
+                    ? 'good'
+                    : prod.reject_percent <= 5
+                      ? 'watch'
+                      : 'bad'
+              }
+            />
+            <Tile
+              label={t('production.vsTarget')}
+              value={
+                prod?.output_vs_target_percent != null
+                  ? `${prod.output_vs_target_percent}%`
+                  : '—'
+              }
+              sub={
+                prod?.target_total
+                  ? t('production.targetOf', { target: prod.target_total.toLocaleString('en-IN') })
+                  : t('production.noTarget')
+              }
+              tone={
+                prod?.output_vs_target_percent == null
+                  ? 'neutral'
+                  : prod.output_vs_target_percent >= 100
+                    ? 'good'
+                    : prod.output_vs_target_percent >= 90
+                      ? 'watch'
+                      : 'bad'
+              }
+            />
+          </div>
+        </section>
+      )}
 
       {/* ---- ROW 2: reliability + action queue ---- */}
+      {showMaintenance && (
       <div className="grid gap-6 lg:grid-cols-2">
         <section aria-labelledby="reliability">
           <h2
@@ -326,11 +414,18 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
               {t('board.summarisedNote')}
             </p>
           )}
+
+          {filtersActive && (
+            <p className="mt-3" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>
+              {t('filters.notNarrowed')}
+            </p>
+          )}
         </section>
       </div>
+      )}
 
       {/* ---- ROW 3: where, spatially ---- */}
-      {stats && (
+      {showMaintenance && stats && (
         <Reveal>
           <PlantMap
             machines={stats.top_machines}
@@ -342,15 +437,16 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
       )}
 
       {/* ---- ROW 4: why ---- */}
-      {stats && (
+      {showMaintenance && stats && (
         <ParetoChart
           data={stats.pareto_by_cause}
           onSelect={(slice) => setFocus({ kind: 'cause', label: slice.label })}
         />
       )}
-      {stats && <DowntimeTrendChart data={stats.downtime_trend} />}
+      {showMaintenance && stats && <DowntimeTrendChart data={stats.downtime_trend} />}
 
       {/* ---- ROW 4: where ---- */}
+      {showMaintenance && (
       <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
         {stats && (
           <TopMachines
@@ -368,19 +464,31 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
             {t('board.bySection')}
           </h2>
           <SectionBars rows={summary?.sections ?? []} loading={loading} />
+          {filtersActive && (
+            <p className="mt-3" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>
+              {t('filters.notNarrowed')}
+            </p>
+          )}
         </section>
       </div>
+      )}
 
       {/* ---- ROW 5: trend + trust ---- */}
-      {stats && <MttrTrend data={stats.monthly} />}
+      {showMaintenance && stats && <MttrTrend data={stats.monthly} />}
 
-      {/* ---- ROW 6: the other half of the plant ---- */}
-      {/* Machine by machine: downtime and scrap side by side, plus the
-          impregnation view where RC and VC replace a reject rate. */}
-      <MachinePerformancePanel days={days} basis={k?.availability_basis} />
+      {/* ---- ROW 6: the correlation ---- */}
+      {/* Machine by machine: downtime and scrap side by side. This IS the
+          Combined dashboard of V5 §11 view 3 — the one panel on the page that
+          puts a maintenance number and a production number on the same row —
+          so it appears there and nowhere else. */}
+      {module === 'combined' && (
+        <MachinePerformancePanel days={days} basis={k?.availability_basis} />
+      )}
 
-      {prod && <ProductionPanel data={prod} />}
-      {quality && <QualityPanel quality={quality} />}
+      {showProduction && prod && (
+        <ProductionPanel data={prod} showCorrelation={module === 'combined'} />
+      )}
+      {showMaintenance && quality && <QualityPanel quality={quality} />}
 
       {/* Last on the page on purpose: it is what somebody reaches for after
           reading the board, not before. */}
@@ -393,6 +501,65 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
           onChanged={() => void load()}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * Maintenance / HPL Production / Combined (V5 §11).
+ *
+ * A radiogroup rather than a tab list, because the three are not three places
+ * — they are three answers to "which half of the plant am I asking about",
+ * and everything else on the page (period, machine, shift, hours) stays put
+ * when you switch. Tabs imply the content is unrelated; it is the same content
+ * seen from a different side.
+ *
+ * It sits beside the period picker and looks like it on purpose: both are
+ * filters in §11.1's list, and dressing one of them up as navigation would be
+ * a lie about what it does.
+ */
+function ModuleSwitcher({
+  module,
+  onChange,
+}: {
+  module: BoardModule;
+  onChange: (m: BoardModule) => void;
+}) {
+  const { t } = useTranslation();
+  const options: { key: BoardModule; label: string }[] = [
+    { key: 'combined', label: t('board.viewCombined') },
+    { key: 'maintenance', label: t('board.viewMaintenance') },
+    { key: 'production', label: t('board.viewProduction') },
+  ];
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label={t('board.viewLabel')}
+      className="inline-flex rounded-full border p-0.5"
+      style={{ borderColor: 'var(--line)', background: 'var(--surface-muted)' }}
+    >
+      {options.map((o) => {
+        const active = o.key === module;
+        return (
+          <button
+            key={o.key}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(o.key)}
+            className="rounded-full px-3.5 py-1.5 font-medium"
+            style={{
+              fontSize: 'var(--text-sm)',
+              background: active ? 'var(--surface)' : 'transparent',
+              color: active ? 'var(--ink)' : 'var(--ink-muted)',
+              boxShadow: active ? 'var(--shadow)' : 'none',
+            }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

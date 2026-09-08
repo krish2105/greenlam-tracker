@@ -225,7 +225,11 @@
     "criticalityMedium": "Medium",
     "criticalityHigh": "High — took a while",
     "criticalityUnmeasured_one": "1 more finished without a recorded start time",
-    "criticalityUnmeasured_other": "{{count}} more finished without a recorded start time"
+    "criticalityUnmeasured_other": "{{count}} more finished without a recorded start time",
+    "viewLabel": "Dashboard view",
+    "viewCombined": "Combined",
+    "viewMaintenance": "Maintenance",
+    "viewProduction": "Production"
   },
   "masters": {
     "title": "Machine master",
@@ -402,7 +406,20 @@
     "loadNo": "Load No.",
     "loadNoOptional": "Load No. (if you have it)",
     "loadNoPlaceholder": "From the load plan",
-    "loadNoHint": "The number on the SAP load plan. It is how these sheets are traced back to the load."
+    "loadNoHint": "The number on the SAP load plan. It is how these sheets are traced back to the load.",
+    "outputTrend": "Output per day",
+    "outputTrendEmpty": "No production logged in this period.",
+    "outputTrendSummary": "{{total}} sheets over {{days}} days. Worst reject rate on {{worst}}, at {{percent}}%.",
+    "outputTrendPoint": "{{date}}: {{produced}} made, {{percent}}% rejected",
+    "outputTrendNote": "Bars are sheets made, with scrap stacked on top. The line is the reject rate.",
+    "rejectPercent": "Reject rate",
+    "bySection": "By section",
+    "sheetsIn": "Sheets in the last {{days}} days",
+    "rejectedCount_one": "1 sheet scrapped",
+    "rejectedCount_other": "{{count}} sheets scrapped",
+    "vsTarget": "Against target",
+    "targetOf": "Target {{target}}",
+    "noTarget": "No target recorded"
   },
   "plantMap": {
     "title": "The plant, by where the time goes",
@@ -737,5 +754,24 @@
     "saving": "Saving…",
     "failed": "Could not save the photo. Try again.",
     "partPhotoNeeded": "A photo of the part is needed before the repair can start again."
+  },
+  "filters": {
+    "title": "Filters",
+    "machineType": "Machine type",
+    "allTypes": "All types",
+    "machine": "Machine",
+    "allMachines": "All machines",
+    "shift": "Shift",
+    "allShifts": "All shifts",
+    "timeOfDay": "Time of day",
+    "timeOfDayEnd": "End of the time window",
+    "anyTime": "Any time",
+    "loadNo": "Load No.",
+    "loadNoPlaceholder": "e.g. L-4471",
+    "apply": "Apply",
+    "clear_one": "Clear 1 filter",
+    "clear_other": "Clear {{count}} filters",
+    "narrowed": "Every number below is for the filtered slice only.",
+    "notNarrowed": "This panel covers the whole plant — the filters above do not reach it."
   }
 }

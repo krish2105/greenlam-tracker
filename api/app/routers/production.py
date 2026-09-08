@@ -203,7 +203,13 @@ def list_production(
     "/analytics", response_model=ProductionAnalytics, summary="Quality and output analytics"
 )
 def production_analytics(
-    principal: PrincipalDep, session: SessionDep, days: int = _DAYS_Q
+    principal: PrincipalDep,
+    session: SessionDep,
+    days: int = _DAYS_Q,
+    section_id: int | None = Query(None, description="One machine type — all its units"),
+    machine_id: int | None = Query(None),
+    shift_id: int | None = Query(None),
+    load_no: str | None = Query(None, description="One SAP load, across every stage"),
 ) -> ProductionAnalytics:
     """Reject Pareto and segment breakdowns. Readable by every tier.
 
@@ -214,9 +220,21 @@ def production_analytics(
     now = utcnow()
     since = (now - timedelta(days=days)).date()
 
-    rows = session.exec(
-        scope(ProductionLog, principal).where(ProductionLog.log_date >= since)
-    ).all()
+    # Filters combine freely (V5 §11.1). `load_no` is the one that crosses
+    # stages: one load number pulls the press, the AC room, the cutting and the
+    # sanding rows together, which is exactly the trace §6.2A exists for.
+    stmt = scope(ProductionLog, principal).where(ProductionLog.log_date >= since)
+    if section_id is not None:
+        stmt = stmt.where(ProductionLog.section_id == section_id)
+    if machine_id is not None:
+        stmt = stmt.where(ProductionLog.machine_id == machine_id)
+    if shift_id is not None:
+        stmt = stmt.where(ProductionLog.shift_id == shift_id)
+    if load_no:
+        # Uppercased on entry, so an operator typing it in lower case on the
+        # dashboard should still find their own rows.
+        stmt = stmt.where(ProductionLog.load_no == load_no.strip().upper())
+    rows = session.exec(stmt).all()
 
     machines = {m.id: m for m in session.exec(scope(Machine, principal)).all()}
     sections = {s.id: s for s in session.exec(scope(Section, principal)).all()}

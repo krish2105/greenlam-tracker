@@ -478,9 +478,43 @@ export interface Analytics {
   sparklines: Record<string, number[]>;
 }
 
+/**
+ * What the board is currently looking at (V5 §11.1).
+ *
+ * All optional, all independent, all combining freely. That is the whole point
+ * of the section: the alternative is a fixed report per question, and the list
+ * of questions never stops growing.
+ *
+ * `load_no` only reaches production — a maintenance ticket is raised against a
+ * machine, not against a load, and pretending otherwise would silently empty
+ * the maintenance half of the screen the moment somebody typed a load number.
+ */
+export interface BoardFilters {
+  section_id?: number | null;
+  machine_id?: number | null;
+  shift_id?: number | null;
+  /** Inclusive plant-local hours. 22→6 is a night window, and wraps. */
+  hour_from?: number | null;
+  hour_to?: number | null;
+  load_no?: string | null;
+}
+
+function filterQuery(filters: BoardFilters | undefined, keys: (keyof BoardFilters)[]): string {
+  if (!filters) return '';
+  let out = '';
+  for (const key of keys) {
+    const value = filters[key];
+    // 0 is a real hour. `!value` would drop midnight.
+    if (value === null || value === undefined || value === '') continue;
+    out += `&${key}=${encodeURIComponent(String(value))}`;
+  }
+  return out;
+}
+
 /** Everything the board draws, in one round trip. Readable by every tier. */
-export function analytics(days = 90): Promise<Analytics> {
-  return request<Analytics>(`/tickets/analytics?days=${days}`);
+export function analytics(days = 90, filters?: BoardFilters): Promise<Analytics> {
+  const q = filterQuery(filters, ['section_id', 'machine_id', 'shift_id', 'hour_from', 'hour_to']);
+  return request<Analytics>(`/tickets/analytics?days=${days}${q}`);
 }
 
 export function listTickets(state: 'open' | 'closed' | 'all' = 'open'): Promise<Ticket[]> {
@@ -678,8 +712,12 @@ export interface Shift {
 }
 
 /** Aggregates. Readable by every tier — no names, no individual rows. */
-export function productionAnalytics(days = 90): Promise<ProductionAnalytics> {
-  return request<ProductionAnalytics>(`/production/analytics?days=${days}`);
+export function productionAnalytics(
+  days = 90,
+  filters?: BoardFilters,
+): Promise<ProductionAnalytics> {
+  const q = filterQuery(filters, ['section_id', 'machine_id', 'shift_id', 'load_no']);
+  return request<ProductionAnalytics>(`/production/analytics?days=${days}${q}`);
 }
 
 export function listProduction(days = 30): Promise<ProductionRow[]> {
