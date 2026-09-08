@@ -341,3 +341,39 @@ def test_every_area_is_grantable(area, client: TestClient, plant_fixture, auth_h
     )
     assert approved.status_code == 200, approved.text
     assert approved.json()["areas"] == [area]
+
+
+class TestTheFirstAdmin:
+    """V5 §3: the first Admin cannot approve themselves, so one account is
+    provisioned outside the app. It must be impossible to use that path twice."""
+
+    def test_it_refuses_while_anybody_has_an_account(
+        self, plant_fixture, session, monkeypatch
+    ):
+        from app import bootstrap
+
+        monkeypatch.setenv("BOOTSTRAP_ADMIN_PIN", "483920")
+        result = bootstrap.run(session)
+        assert "already has an account" in result
+
+    def test_it_refuses_a_weak_pin(self, session, monkeypatch):
+        from app import bootstrap
+        from app.models import User
+
+        for u in session.exec(select(User)).all():
+            session.delete(u)
+        session.commit()
+
+        monkeypatch.setenv("BOOTSTRAP_ADMIN_PIN", "123456")
+        assert "6 digits" in bootstrap.run(session)
+
+    def test_it_says_so_plainly_when_no_pin_is_set(self, session, monkeypatch):
+        from app import bootstrap
+        from app.models import User
+
+        for u in session.exec(select(User)).all():
+            session.delete(u)
+        session.commit()
+
+        monkeypatch.delenv("BOOTSTRAP_ADMIN_PIN", raising=False)
+        assert "nobody can sign in yet" in bootstrap.run(session)
