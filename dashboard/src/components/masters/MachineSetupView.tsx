@@ -50,7 +50,7 @@ export function MachineSetupView() {
   const [rows, setRows] = useState<api.MachineSetup[]>([]);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const [bulk, setBulk] = useState({ cost: '', hours: '' });
+  const [bulk, setBulk] = useState({ cost: '', hours: '', criticality: '' });
 
   const load = useCallback(() => {
     void api
@@ -92,13 +92,17 @@ export function MachineSetupView() {
   async function applyToAll(field: Field, raw: string) {
     if (!raw.trim()) return;
     setError('');
-    // Sequential, not Promise.all. Thirty-three parallel PATCHes on a free
+    // Criticality is a letter, not a number. This used to coerce with
+    // Number() for every field, which turns 'B' into NaN — so adding it to the
+    // bulk row without this would have quietly written null across all 42.
+    const value = field === 'criticality' ? raw : Number(raw);
+    // Sequential, not Promise.all. Forty-two parallel PATCHes on a free
     // instance is how you turn a convenience into a timeout.
     for (const row of rows) {
       try {
-        await api.updateMachineSetup(row.id, { [field]: Number(raw) });
+        await api.updateMachineSetup(row.id, { [field]: value });
       } catch {
-        /* keep going — one rejected row must not abandon the other 32 */
+        /* keep going — one rejected row must not abandon the other 41 */
       }
     }
     load();
@@ -221,6 +225,51 @@ export function MachineSetupView() {
               </button>
             </div>
           ))}
+
+          {/* Criticality was left out of this row, so it was the one field
+              needing forty-two individual dropdowns — and it is the field that
+              decides what the floor sees first. Most of a plant sits on one
+              band with a handful of exceptions, which is exactly the shape
+              bulk fill exists for. A select rather than a box: there are three
+              legal values and a typo is a rejected PATCH per row. */}
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <label
+                htmlFor="bulk-criticality"
+                className="mb-1 block font-medium"
+                style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)' }}
+              >
+                {t('setup.criticality')}
+              </label>
+              <select
+                id="bulk-criticality"
+                value={bulk.criticality}
+                onChange={(e) => setBulk((p) => ({ ...p, criticality: e.target.value }))}
+                className="arch w-full border px-3 py-2.5"
+                style={cell}
+              >
+                <option value="">—</option>
+                {CRITICALITY.map((c) => (
+                  <option key={c} value={c}>
+                    {t(`setup.crit${c}`)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => void applyToAll('criticality', bulk.criticality)}
+              disabled={!bulk.criticality}
+              className="arch min-h-[42px] border px-3 font-medium disabled:opacity-40"
+              style={{
+                fontSize: 'var(--text-sm)',
+                borderColor: 'var(--line-strong)',
+                color: 'var(--ink)',
+              }}
+            >
+              {t('setup.applyAll')}
+            </button>
+          </div>
         </div>
         <p className="mt-2" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>
           {t('setup.bulkNote')}
