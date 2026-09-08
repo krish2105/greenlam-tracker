@@ -356,6 +356,38 @@ class TestTheFirstAdmin:
         result = bootstrap.run(session)
         assert "already has an account" in result
 
+    def test_it_holds_every_area_including_production(self, plant_fixture, session, monkeypatch):
+        """The bootstrap account has to be able to prove the WHOLE system.
+
+        It used to get admin + dashboard, which is the board without the floor
+        — and Admin does not grant `log_production` (V5 §3 keeps them separate,
+        correctly). So the only account on a freshly cleared system opened the
+        app, found no Production section, and reasonably concluded something
+        had been deleted. Nothing had.
+        """
+        from app import bootstrap
+        from app.models import User, UserAccessArea
+        from app.roles import AREAS, can
+
+        for u in session.exec(select(User)).all():
+            session.delete(u)
+        session.commit()
+
+        monkeypatch.setenv("BOOTSTRAP_ADMIN_PIN", "483920")
+        assert "Created the first admin" in bootstrap.run(session)
+
+        admin = session.exec(select(User).where(User.employee_id == "ADMIN")).one()
+        held = {
+            r.area
+            for r in session.exec(
+                select(UserAccessArea).where(UserAccessArea.user_id == admin.id)
+            ).all()
+        }
+        assert held == set(AREAS)
+        # Named explicitly, because this is the capability that was missing and
+        # a future narrowing of the default has to argue with this line.
+        assert can(held, "log_production")
+
     def test_it_refuses_a_weak_pin(self, session, monkeypatch):
         from app import bootstrap
         from app.models import User

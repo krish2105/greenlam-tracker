@@ -58,6 +58,7 @@ from .models import (
     UserAccessArea,
     utcnow,
 )
+from .roles import AREAS
 from .security import hash_pin, validate_pin_format
 
 # Children before parents, or the foreign keys refuse. Same discipline as
@@ -160,11 +161,22 @@ def wipe(session: Session) -> dict[str, int]:
 def create_admin(session: Session, *, employee_id: str, name: str, pin: str) -> User:
     """The one account that exists before anybody can be approved.
 
-    Given Dashboard alongside Admin. V5 §3 keeps them separate grants and this
-    is the one account where combining them is right: the person setting a
-    plant up has to be able to see whether it is working, and there is nobody
-    else yet to grant it to them.
+    Given EVERY area, not just Admin and Dashboard.
+
+    The first version granted admin + dashboard on the reasoning that whoever
+    sets a plant up needs to see whether it is working. That gave them the
+    board and withheld the floor — which is the half they would actually want
+    to test, and Admin does not grant `log_production` (V5 §3 keeps those
+    separate, correctly). So the only account on a freshly cleared system
+    opened the app and found no Production section at all, and reasonably
+    concluded something had been deleted. Nothing had.
+
+    All six is the right default for one account that has to prove the whole
+    system works before anybody else exists. V5 §3 explicitly allows one person
+    to hold all of them, and the Access screen is where it gets narrowed the
+    moment there is somebody to narrow it in favour of.
     """
+
     plant_id = session.exec(select(User.plant_id)).first()
     if plant_id is None:
         from .models import Plant
@@ -188,7 +200,7 @@ def create_admin(session: Session, *, employee_id: str, name: str, pin: str) -> 
     session.commit()
     session.refresh(user)
 
-    for area in ("admin", "dashboard"):
+    for area in AREAS:
         session.add(UserAccessArea(user_id=user.id, area=area))
     session.commit()
     return user

@@ -35,6 +35,7 @@ from sqlmodel import Session, select
 
 from .db import engine
 from .models import Plant, User, UserAccessArea, utcnow
+from .roles import AREAS
 from .security import hash_pin, validate_pin_format
 
 
@@ -66,11 +67,21 @@ def run(session: Session) -> str:
     session.commit()
     session.refresh(user)
 
-    # Admin AND Dashboard. V5 §3 keeps them separate grants and this is the one
-    # account where combining them is right: the person setting a plant up has
-    # to be able to see whether it is working, and there is nobody else yet to
-    # grant it to them. They can narrow it from the Access screen afterwards.
-    for area in ("admin", "dashboard"):
+    # EVERY area, not just admin and dashboard.
+    #
+    # The first version granted those two, reasoning that whoever sets a plant
+    # up needs to see whether it is working. That gave them the board and
+    # withheld the floor — the half they would actually want to test — because
+    # Admin does not grant `log_production` and V5 §3 is right to keep those
+    # separate. The result: the only account on a freshly cleared system opened
+    # the app, found no Production section, and reasonably concluded something
+    # had been deleted. Nothing had.
+    #
+    # All six is the right default for the one account that has to prove the
+    # whole system before anybody else exists. V5 §3 explicitly allows one
+    # person to hold all of them, and the Access screen is where it gets
+    # narrowed the moment there is somebody to narrow it in favour of.
+    for area in AREAS:
         session.add(UserAccessArea(user_id=user.id, area=area))
     session.commit()
 
