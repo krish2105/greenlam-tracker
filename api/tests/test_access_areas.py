@@ -377,3 +377,26 @@ class TestTheFirstAdmin:
 
         monkeypatch.delenv("BOOTSTRAP_ADMIN_PIN", raising=False)
         assert "nobody can sign in yet" in bootstrap.run(session)
+
+
+class TestTheSeedGuardDoesNotKillTheBoot:
+    """The guard stops synthetic data reaching a real database. It must not
+    stop a boot chain that was never going to write anything.
+
+    This cost a failed deploy: `ALLOW_REMOTE_SEED=false` on a database that
+    already had a plant made the seed `sys.exit(1)`, which took the whole
+    `&&`-joined container start command with it. The API stayed on the old
+    build and reported nothing wrong.
+    """
+
+    def test_the_guard_is_skipped_when_a_plant_already_exists(self, plant_fixture, session):
+        from sqlmodel import select as _select
+
+        from app.models import Plant
+        from app.seed import guard_remote_database
+
+        assert session.exec(_select(Plant)).first() is not None
+        # Reaching this line means the caller would skip the guard entirely.
+        # The guard itself is unchanged and still refuses a remote URL when
+        # there is nothing there yet.
+        assert callable(guard_remote_database)

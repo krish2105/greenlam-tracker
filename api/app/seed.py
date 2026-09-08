@@ -741,8 +741,20 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    guard_remote_database()
     with Session(engine) as session:
+        # The guard stops SYNTHETIC data reaching a real database. A database
+        # that already has a plant is one this seed writes nothing to — it
+        # stops at "a plant already exists" — so there is nothing to refuse,
+        # and refusing anyway killed the container's boot chain: the seed runs
+        # under `&&` before the migrations' siblings, and `sys.exit(1)` took
+        # the whole start command with it. The API stayed on the old build and
+        # said nothing.
+        #
+        # `--reset` is the exception. That one DOES write, so it is guarded
+        # whatever is already there.
+        if args.reset or session.exec(select(Plant)).first() is None:
+            guard_remote_database()
+
         if args.reset:
             reset(session)
         seed(session, with_history=not args.thin)
