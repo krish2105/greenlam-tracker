@@ -170,9 +170,17 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
             days={days}
             hero
           />
+          {/* V5 §10 names these two and says not to invent a synonym. They
+              read "Average repair time" and "Time to respond" before, which
+              are the same measures under different words — so the board and
+              the Excel could not be recognised as the same number. The
+              sub-line spells out what each one is measured between, because
+              "Time to Resolve" and "Solve Time" are easy to mix up and only
+              one of them subtracts waiting. */}
           <Tile
             label={t('board.mttr')}
             value={k?.mttr_minutes != null ? formatDuration(k.mttr_minutes) : '—'}
+            sub={t('board.mttrHint')}
             delta={k?.mttr_delta ?? null}
             higherIsBetter={false}
             spark={stats?.sparklines.mttr}
@@ -181,6 +189,7 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
           <Tile
             label={t('board.mtta')}
             value={k?.mtta_minutes != null ? formatDuration(k.mtta_minutes) : '—'}
+            sub={t('board.mttaHint')}
             delta={k?.mtta_delta ?? null}
             higherIsBetter={false}
             spark={stats?.sparklines.mtta}
@@ -274,6 +283,12 @@ export function BoardView({ canDrill }: { canDrill: boolean }) {
             />
           </dl>
           {k && <Ageing buckets={k.ageing} />}
+          {k && (
+            <CriticalityMix
+              mix={k.criticality_mix}
+              unmeasured={k.criticality_unmeasured}
+            />
+          )}
         </section>
 
         <section aria-labelledby="needs-attention">
@@ -509,6 +524,67 @@ function Stat({ term, value, note }: { term: string; value: string; note?: strin
         {value}
       </dd>
       {note && <p style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>{note}</p>}
+    </div>
+  );
+}
+
+/**
+ * How the finished repairs came out (V5 §5.8).
+ *
+ * Banded on Solve Time — the actual work, with waiting for parts already
+ * subtracted — so this is not the same shape as the downtime chart above it. A
+ * repair can be High here and barely register there, and that difference is
+ * the useful part: it separates a machine that is hard to fix from one that
+ * simply waited a long time for a bearing.
+ *
+ * The unmeasured line is deliberate. Tickets imported from the old register
+ * carry a raise and a resolve and nothing in between, so they have no Solve
+ * Time and never will. Folding them into Low would flatter the plant; saying
+ * how many there are lets somebody judge how much of the picture this is.
+ */
+function CriticalityMix({
+  mix,
+  unmeasured,
+}: {
+  mix: Record<string, number>;
+  unmeasured: number;
+}) {
+  const { t } = useTranslation();
+  const rows = [
+    { key: 'Low', label: t('board.criticalityLow'), tone: 'var(--primary)' },
+    { key: 'Medium', label: t('board.criticalityMedium'), tone: 'var(--amber)' },
+    { key: 'High', label: t('board.criticalityHigh'), tone: 'var(--rust)' },
+  ];
+  const measured = rows.reduce((sum, r) => sum + (mix[r.key] ?? 0), 0);
+  if (measured === 0 && unmeasured === 0) return null;
+
+  return (
+    <div className="mt-5">
+      <p className="font-medium" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>
+        {t('board.criticalityTitle')}
+      </p>
+      <ul className="mt-2 space-y-1.5">
+        {rows.map((row) => (
+          <li key={row.key} className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="inline-block h-2 w-2 shrink-0 rounded-full"
+              style={{ background: row.tone }}
+            />
+            <span className="flex-1" style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)' }}>
+              {row.label}
+            </span>
+            <span className="tabular font-medium" style={{ color: 'var(--ink)' }}>
+              {mix[row.key] ?? 0}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {unmeasured > 0 && (
+        <p className="mt-2" style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>
+          {t('board.criticalityUnmeasured', { count: unmeasured })}
+        </p>
+      )}
     </div>
   );
 }

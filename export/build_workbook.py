@@ -77,6 +77,16 @@ BD_HEADERS = [
 # see the module docstring.
 AUDIT_HEADERS = ["Id", "Edited", "Last Edited By", "Last Edited At"]
 
+# V5 §5.8: the calculated result is "shown wherever criticality appears —
+# dashboard, Excel, filters". Two columns rather than one, because they answer
+# different questions: the band is what a supervisor filters on, and the
+# minutes are what somebody argues with when they disagree with the band.
+#
+# Solve Time, not elapsed time — waiting for a part is already subtracted. The
+# register's own "BD (Min)" column beside it is the elapsed figure, and the two
+# differing is the point rather than a discrepancy.
+CRITICALITY_HEADERS = ["Criticality (calculated)", "Solve Time (min)"]
+
 # The id column is written and then hidden. It is a UUID nobody reads and its
 # only job is to let a row be found again; left visible it is a column of noise
 # in front of every person who opens the workbook.
@@ -243,6 +253,7 @@ def sheet_bd_tracker(wb: Workbook, conn: psycopg.Connection, plant_id: int) -> N
                t.description, t.immediate_correction, t.root_cause, t.preventive_action,
                t.sheets_after_sanding,
                t.last_edited_at, e.name AS last_edited_by_name,
+               t.criticality_calculated, t.solve_minutes,
                EXTRACT(EPOCH FROM (t.resolved_at - t.raised_at))/60 AS bd_min
         FROM tickets t
         JOIN machines m ON m.id = t.machine_id
@@ -257,7 +268,7 @@ def sheet_bd_tracker(wb: Workbook, conn: psycopg.Connection, plant_id: int) -> N
 
     write_table(
         ws,
-        BD_HEADERS + AUDIT_HEADERS,
+        BD_HEADERS + CRITICALITY_HEADERS + AUDIT_HEADERS,
         [
             [
                 i + 1,
@@ -273,12 +284,14 @@ def sheet_bd_tracker(wb: Workbook, conn: psycopg.Connection, plant_id: int) -> N
                 r["root_cause"] or "",
                 r["preventive_action"] or "",
                 r["sheets_after_sanding"] or "",
+                r["criticality_calculated"] or "",
+                round(float(r["solve_minutes"]), 1) if r["solve_minutes"] is not None else "",
                 *audit_cells(r),
             ]
             for i, r in enumerate(data)
         ],
     )
-    hide_id_column(ws, BD_HEADERS + AUDIT_HEADERS)
+    hide_id_column(ws, BD_HEADERS + CRITICALITY_HEADERS + AUDIT_HEADERS)
 
 
 def sheet_machine_summary(wb: Workbook, conn: psycopg.Connection, plant_id: int) -> None:

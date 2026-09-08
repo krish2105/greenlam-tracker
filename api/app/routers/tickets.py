@@ -414,6 +414,7 @@ def board_analytics(principal: PrincipalDep, session: SessionDep, days: int = _D
             section_name=section.name,
             category=categories.get(t.category_id, "Uncategorised"),
             priority=lifecycle.urgency_of_machine(machine.criticality),
+            criticality_calculated=t.criticality_calculated,
             downtime_type=t.downtime_type,
             current_stage=t.current_stage,
             raised_at=t.raised_at,
@@ -787,6 +788,11 @@ def handover(
         prepared_at=now,
         raised_in_shift=len(raised),
         closed_in_shift=len(closed),
+        # Split deliberately. `still_open` below is everything not fully
+        # closed, which is the right list to hand to the next shift — but as a
+        # COUNT it says a machine is down when it is already running again.
+        machines_down=sum(1 for t in still_open if t.status not in ("resolved", "closed")),
+        rca_pending=sum(1 for t in still_open if t.status == "resolved"),
         still_open=[
             line(t, "Still open — pick this up first.")
             for t in sorted(still_open, key=lambda x: x.raised_at)[:10]
@@ -1000,6 +1006,22 @@ def _apply(
             ticket.resolved_by = principal.user_id
             ticket.immediate_correction = body.immediate_correction.strip()
             classify.classify(ticket, session)
+            # V5 §9 sends a High result to Supervisors and Managers for
+            # awareness — no action is asked of them, so the wording asks for
+            # none. Fired here rather than by the worker because the number
+            # exists exactly now and is never recomputed.
+            if ticket.criticality_calculated == "High":
+                machine = session.get(Machine, ticket.machine_id)
+                notify.ticket_flagged(
+                    session,
+                    machine_code=machine.code if machine else "—",
+                    reason=(
+                        f"Repair took {ticket.solve_minutes:.0f} minutes of actual work."
+                        if ticket.solve_minutes is not None
+                        else "The repair came out High."
+                    ),
+                    by=principal.user_id,
+                )
 
         case "DIAGNOSED":
             if not (body.why_1 or "").strip():

@@ -54,6 +54,10 @@ class TicketFacts:
     reopen_count: int
     root_cause_score: int | None
     root_cause_usable: bool
+    # How this repair came out, once it was measured (V5 §5.8). None on an
+    # unfinished ticket, and on any finished one that never recorded a
+    # Correction Started time — every row imported from the old register.
+    criticality_calculated: str | None = None
 
     @property
     def is_closed(self) -> bool:
@@ -74,6 +78,9 @@ class TicketFacts:
     @property
     def counts_toward_mtbf(self) -> bool:
         return self.downtime_type in FAILURE_TYPES
+
+
+CRITICALITY_BANDS = ("Low", "Medium", "High")
 
 
 @dataclass(slots=True)
@@ -103,6 +110,8 @@ class Kpis:
     # very different numbers they are looking at.
     availability_basis: str = "calendar"
     ageing: dict[str, int] = field(default_factory=dict)
+    criticality_mix: dict[str, int] = field(default_factory=dict)
+    criticality_unmeasured: int = 0
     # Percentage change vs the immediately preceding period of the same length.
     # None when there is no comparable history yet — showing a delta against an
     # empty period would invent a trend.
@@ -138,6 +147,18 @@ def compute_kpis(
 
     downtimes = [f.downtime_minutes for f in facts if f.downtime_minutes is not None]
     acks = [f.ack_minutes for f in facts if f.ack_minutes is not None]
+
+    # Counts, not percentages. "Three High this month" is a sentence somebody
+    # acts on; "6.2% High" is one they nod at.
+    kpis.criticality_mix = {
+        band: sum(1 for f in facts if f.criticality_calculated == band)
+        for band in CRITICALITY_BANDS
+    }
+    # The honest remainder: finished, but never measured. Folding these into
+    # Low would flatter the plant.
+    kpis.criticality_unmeasured = sum(
+        1 for f in facts if f.resolved_at is not None and f.criticality_calculated is None
+    )
 
     kpis.downtime_minutes = round(sum(downtimes), 1)
     kpis.mttr_minutes = round(_mean(downtimes), 1) if downtimes else None

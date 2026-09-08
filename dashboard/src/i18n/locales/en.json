@@ -88,9 +88,11 @@
   },
   "handover": {
     "title": "Since midnight",
-    "summary": "{{raised}} raised · {{closed}} closed · {{open}} still open",
+    "summary": "{{raised}} raised · {{down}} machines down · {{closed}} closed",
     "awaitingWriteUp_one": "1 machine is running with no write-up",
-    "awaitingWriteUp_other": "{{count}} machines are running with no write-up"
+    "awaitingWriteUp_other": "{{count}} machines are running with no write-up",
+    "rcaPending_one": "1 fixed, write-up still to do",
+    "rcaPending_other": "{{count}} fixed, write-ups still to do"
   },
   "raise": {
     "title": "Report a breakdown",
@@ -170,7 +172,7 @@
     "title": "Dashboard",
     "headline": "Headline numbers",
     "downtime": "Downtime",
-    "mttr": "Average repair time",
+    "mttr": "Time to Resolve",
     "openTickets": "Open tickets",
     "rootCauseQuality": "Root-cause quality",
     "thisPeriod": "closed tickets to date",
@@ -193,7 +195,7 @@
     "qualityTeamOnly": "Team level only. Individual entries are visible to that person and their supervisor.",
     "comingSoon": "KPIs and charts arrive in Phase 5.",
     "restricted": "Restricted to supervisors and plant leadership.",
-    "mtta": "Time to respond",
+    "mtta": "Time to Acknowledge",
     "mtbf": "Time between failures",
     "availability": "Availability",
     "firstTimeFix": "First-time fix",
@@ -215,7 +217,15 @@
     "heroLoading": "Reading the last {{days}} days…",
     "costValue": "₹{{amount}} lost to downtime",
     "costBasis": "over {{days}} days, from the hourly rate set for each machine.",
-    "costPartial": "No rupee figure yet — {{priced}} of {{total}} machines that went down have an hourly rate. A total covering only some of them would look complete and be silently low. Set the rest under Setup."
+    "costPartial": "No rupee figure yet — {{priced}} of {{total}} machines that went down have an hourly rate. A total covering only some of them would look complete and be silently low. Set the rest under Setup.",
+    "mttrHint": "Raised until the machine was running again",
+    "mttaHint": "Raised until somebody picked it up",
+    "criticalityTitle": "How the repairs came out",
+    "criticalityLow": "Low — quick",
+    "criticalityMedium": "Medium",
+    "criticalityHigh": "High — took a while",
+    "criticalityUnmeasured_one": "1 more finished without a recorded start time",
+    "criticalityUnmeasured_other": "{{count}} more finished without a recorded start time"
   },
   "masters": {
     "title": "Machine master",

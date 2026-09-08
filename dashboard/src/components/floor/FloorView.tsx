@@ -376,18 +376,21 @@ function HandoverStrip({ handover }: { handover: api.Handover }) {
       >
         {t('handover.title')}
       </p>
+      {/* V5 §5.6's four counters. "Down" counted everything not fully closed
+          before, which said a press was stopped when it had been running since
+          Correction Complete and only the write-up was outstanding. Those are
+          two different problems for two different people, so they are now two
+          numbers. */}
       <p className="tabular mt-1" style={{ color: 'var(--ink)' }}>
         {t('handover.summary', {
           raised: handover.raised_in_shift,
           closed: handover.closed_in_shift,
-          open: handover.still_open.length,
+          down: handover.machines_down,
         })}
       </p>
-      {handover.awaiting_root_cause.length > 0 && (
+      {handover.rca_pending > 0 && (
         <p className="mt-1" style={{ fontSize: 'var(--text-sm)', color: 'var(--amber)' }}>
-          {t('handover.awaitingWriteUp', {
-            count: handover.awaiting_root_cause.length,
-          })}
+          {t('handover.rcaPending', { count: handover.rca_pending })}
         </p>
       )}
     </section>

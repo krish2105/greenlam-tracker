@@ -244,6 +244,17 @@ class HandoverRead(BaseModel):
     prepared_at: datetime
     raised_in_shift: int
     closed_in_shift: int
+    # V5 §5.6's two other counters, and they mean different things.
+    #
+    # `machines_down` is the live backlog: the machine itself is still stopped.
+    # A half-closed ticket is NOT in it — the machine went back into service at
+    # Correction Complete, and counting it as down would tell a supervisor a
+    # press is stopped when it is running.
+    #
+    # `rca_pending` is the paperwork backlog, which is a different problem with
+    # a different urgency and belongs to a different person's afternoon.
+    machines_down: int = 0
+    rca_pending: int = 0
     still_open: list[HandoverTicket]
     awaiting_root_cause: list[HandoverTicket]
     downtime_minutes: float
@@ -290,6 +301,15 @@ class KpiSet(BaseModel):
     cost_priced_machines: int = 0
     cost_total_machines: int = 0
     ageing: dict[str, int]
+    # How the finished repairs came out (V5 §5.8). Counts, not percentages:
+    # "three High this month" is a sentence somebody acts on; "6.2% High" is
+    # one they nod at.
+    #
+    # `criticality_unmeasured` is the honest remainder — repairs with no
+    # recorded Correction Started time, which is every ticket imported from the
+    # old register. Folding them into Low would flatter the plant.
+    criticality_mix: dict[str, int] = {}
+    criticality_unmeasured: int = 0
     downtime_delta: float | None
     mttr_delta: float | None
     mtta_delta: float | None

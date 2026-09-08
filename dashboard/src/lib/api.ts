@@ -351,6 +351,10 @@ export interface Handover {
   prepared_at: string;
   raised_in_shift: number;
   closed_in_shift: number;
+  /** Machines actually still stopped. A half-closed ticket is not one. */
+  machines_down: number;
+  /** Fixed, write-up outstanding. A different backlog with a different owner. */
+  rca_pending: number;
   still_open: HandoverTicket[];
   awaiting_root_cause: HandoverTicket[];
   downtime_minutes: number;
@@ -420,6 +424,10 @@ export interface KpiSet {
   cost_priced_machines: number;
   cost_total_machines: number;
   ageing: Record<string, number>;
+  /** How finished repairs came out: Low / Medium / High (V5 §5.8). */
+  criticality_mix: Record<string, number>;
+  /** Finished, but never measured — no Correction Started time was recorded. */
+  criticality_unmeasured: number;
   downtime_delta: number | null;
   mttr_delta: number | null;
   mtta_delta: number | null;

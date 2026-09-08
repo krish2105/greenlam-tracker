@@ -88,9 +88,11 @@
   },
   "handover": {
     "title": "Raat 12 baje se ab tak",
-    "summary": "{{raised}} darj · {{closed}} band · {{open}} ab bhi khule",
+    "summary": "{{raised}} uthe · {{down}} machine band · {{closed}} pure hue",
     "awaitingWriteUp_one": "1 machine chal rahi hai par kaaran nahi likha gaya",
-    "awaitingWriteUp_other": "{{count}} machine chal rahi hain par kaaran nahi likha gaya"
+    "awaitingWriteUp_other": "{{count}} machine chal rahi hain par kaaran nahi likha gaya",
+    "rcaPending_one": "1 theek hui, likhna baaki",
+    "rcaPending_other": "{{count}} theek hui, likhna baaki"
   },
   "raise": {
     "title": "Machine band hone ki soochna dein",
@@ -170,7 +172,7 @@
     "title": "Dashboard",
     "headline": "Mukhya aankde",
     "downtime": "Downtime",
-    "mttr": "Average repair time",
+    "mttr": "Theek hone mein laga samay",
     "openTickets": "Khule tickets",
     "rootCauseQuality": "Root-cause quality",
     "thisPeriod": "ab tak band hue tickets",
@@ -215,7 +217,15 @@
     "heroLoading": "Pichhle {{days}} din padhe ja rahe hain…",
     "costValue": "₹{{amount}} ka nuksaan band rehne se",
     "costBasis": "{{days}} dinon mein, har machine ke liye tay ghanta-rate ke hisaab se.",
-    "costPartial": "Abhi rupaye ka aankda nahi — jo {{total}} machine band huin unmein se {{priced}} ka ghanta-rate bhara hai. Kuch ka hi jod poora dikhega par chupchaap kam hoga. Baaki Setup mein bharein."
+    "costPartial": "Abhi rupaye ka aankda nahi — jo {{total}} machine band huin unmein se {{priced}} ka ghanta-rate bhara hai. Kuch ka hi jod poora dikhega par chupchaap kam hoga. Baaki Setup mein bharein.",
+    "mttrHint": "Ticket uthne se machine chalne tak",
+    "mttaHint": "Ticket uthne se kisi ke pakadne tak",
+    "criticalityTitle": "Marammat kaisi rahin",
+    "criticalityLow": "Kam — jaldi",
+    "criticalityMedium": "Madhyam",
+    "criticalityHigh": "Zyada — waqt laga",
+    "criticalityUnmeasured_one": "1 aur poori hui, par shuru hone ka samay darj nahi",
+    "criticalityUnmeasured_other": "{{count}} aur poori hui, par shuru hone ka samay darj nahi"
   },
   "masters": {
     "title": "Machine master",
