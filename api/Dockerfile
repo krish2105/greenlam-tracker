@@ -45,4 +45,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 #
 # One worker: Render free is 0.1 CPU / 512 MB, and argon2 hashing is
 # memory-hard. A second worker would double peak memory for no throughput.
-CMD ["sh", "-c", "python -m alembic upgrade head && python -m app.seed && python -m app.bootstrap && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+CMD ["sh", "-c", "python -m alembic upgrade head && python -m app.seed && python -m app.start_trial --on-boot && python -m app.bootstrap && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]

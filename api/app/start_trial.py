@@ -30,6 +30,7 @@ because a PIN printed into a deploy log is a PIN in a deploy log.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from sqlmodel import Session, delete, select
@@ -41,6 +42,7 @@ from .models import (
     Device,
     ImportRun,
     ImpregnationLog,
+    Plant,
     ProductionCorrection,
     ProductionLog,
     PushSubscription,
@@ -81,6 +83,43 @@ TRANSACTIONAL = (
     UserAccessArea,
     User,
 )
+
+
+# Written to `plant_settings` the first time the demo is cleared, and checked
+# before it is ever cleared again.
+#
+# THE MARKER IS IN THE DATABASE, NOT THE ENVIRONMENT
+#
+# This runs on container start when START_TRIAL is set, and an environment
+# variable somebody forgets to clear would empty the plant's real trial data on
+# the next redeploy. A row that survives in the database cannot be forgotten:
+# once the trial has started, this is a no-op forever, whatever the environment
+# says.
+STARTED_KEY = "trial.started_at"
+
+
+def already_started(session: Session) -> bool:
+    from .models import PlantSetting
+
+    return (
+        session.exec(select(PlantSetting).where(PlantSetting.key == STARTED_KEY)).first()
+        is not None
+    )
+
+
+def mark_started(session: Session) -> None:
+    from .models import PlantSetting
+
+    plant_id = session.exec(select(Plant.id)).first()
+    if plant_id is None:
+        return
+    # `minutes` is the only value column and this is not a duration. Storing
+    # the fact rather than a time: what matters is that it happened, and
+    # `updated_at` records when.
+    session.add(
+        PlantSetting(plant_id=plant_id, key=STARTED_KEY, minutes=None, updated_at=utcnow())
+    )
+    session.commit()
 
 
 def wipe(session: Session) -> dict[str, int]:
@@ -139,6 +178,15 @@ def main() -> None:  # pragma: no cover - an operator command
         action="store_true",
         help="Required. Without it this prints what it would delete and stops.",
     )
+    parser.add_argument(
+        "--on-boot",
+        action="store_true",
+        help=(
+            "For the container start chain. Acts only when START_TRIAL is set "
+            "AND the trial has never been started before, then records that it "
+            "has so a redeploy can never wipe real data."
+        ),
+    )
     parser.add_argument("--admin-id", default="ADMIN")
     parser.add_argument("--admin-name", default="Plant Admin")
     parser.add_argument(
@@ -149,6 +197,20 @@ def main() -> None:  # pragma: no cover - an operator command
     args = parser.parse_args()
 
     with Session(engine) as session:
+        if args.on_boot:
+            if os.environ.get("START_TRIAL", "").lower() not in ("1", "true", "yes"):
+                return
+            if already_started(session):
+                print("Trial already started — leaving the data alone.")
+                return
+            counts = wipe(session)
+            mark_started(session)
+            print(
+                f"Cleared the demo: {sum(counts.values())} rows across "
+                f"{len(counts)} tables. Masters kept."
+            )
+            return
+
         if not args.confirm:
             print("Would delete every row from:")
             for model in TRANSACTIONAL:
