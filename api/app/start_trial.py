@@ -95,29 +95,52 @@ TRANSACTIONAL = (
 # the next redeploy. A row that survives in the database cannot be forgotten:
 # once the trial has started, this is a no-op forever, whatever the environment
 # says.
-STARTED_KEY = "trial.started_at"
+STARTED_KEY = "trial.started"
 
 
-def already_started(session: Session) -> bool:
+def _key_for(run_id: str) -> str:
+    """The marker key for one particular clear.
+
+    The run id lives IN the key rather than in a column of its own, which keeps
+    this to zero schema changes and makes the history readable: every clear the
+    plant has ever done is a row, and `SELECT key FROM plant_settings WHERE key
+    LIKE 'trial.started:%'` is the whole audit.
+    """
+    return f"{STARTED_KEY}:{run_id}"[:64]
+
+
+def already_started(session: Session, run_id: str) -> bool:
+    """Whether this exact clear has already happened.
+
+    Keyed on the VALUE of START_TRIAL, not merely on its presence. Redeploying
+    with the same value — which is what happens on every restart, every env
+    change and every push — is a no-op forever. Clearing a second time takes
+    deliberately typing a different value, which nobody does by accident.
+
+    That distinction is the whole safety property: the plant's real trial data
+    must survive a redeploy, and it must still be possible to start over on the
+    day before the trial begins.
+    """
     from .models import PlantSetting
 
     return (
-        session.exec(select(PlantSetting).where(PlantSetting.key == STARTED_KEY)).first()
+        session.exec(
+            select(PlantSetting).where(PlantSetting.key == _key_for(run_id))
+        ).first()
         is not None
     )
 
 
-def mark_started(session: Session) -> None:
+def mark_started(session: Session, run_id: str) -> None:
     from .models import PlantSetting
 
     plant_id = session.exec(select(Plant.id)).first()
     if plant_id is None:
         return
-    # `minutes` is the only value column and this is not a duration. Storing
-    # the fact rather than a time: what matters is that it happened, and
-    # `updated_at` records when.
     session.add(
-        PlantSetting(plant_id=plant_id, key=STARTED_KEY, minutes=None, updated_at=utcnow())
+        PlantSetting(
+            plant_id=plant_id, key=_key_for(run_id), minutes=None, updated_at=utcnow()
+        )
     )
     session.commit()
 
@@ -198,13 +221,14 @@ def main() -> None:  # pragma: no cover - an operator command
 
     with Session(engine) as session:
         if args.on_boot:
-            if os.environ.get("START_TRIAL", "").lower() not in ("1", "true", "yes"):
+            run_id = os.environ.get("START_TRIAL", "").strip()
+            if not run_id or run_id.lower() in ("0", "false", "no"):
                 return
-            if already_started(session):
-                print("Trial already started — leaving the data alone.")
+            if already_started(session, run_id):
+                print(f"Trial '{run_id}' already started — leaving the data alone.")
                 return
             counts = wipe(session)
-            mark_started(session)
+            mark_started(session, run_id)
             print(
                 f"Cleared the demo: {sum(counts.values())} rows across "
                 f"{len(counts)} tables. Masters kept."
